@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/btnHome"
+        android:title="홈" />
+    <item
+        android:id="@+id/btnBoard"
+        android:title="게시글" />
+    <item
+        android:id="@+id/btnChat"
+        android:title="채팅" />
+    <item
+        android:id="@+id/btnMyPage"
+        android:title="내 정보" />
+</menu>
