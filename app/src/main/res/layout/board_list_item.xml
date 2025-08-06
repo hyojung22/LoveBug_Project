@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="30dp"
+    android:background="@color/white">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:cardUseCompatPadding="true"
+        app:contentPadding="20dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:background="#CCCCCC"
+                android:id="@+id/imgBoard"
+                android:layout_width="0dp"
+                android:layout_height="200dp"
+                android:scaleType="fitCenter"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                android:src="@android:drawable/ic_menu_report_image" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/constraintLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/imgBoard">
+
+                <ImageView
+                    android:id="@+id/imgProfile"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/circle_profile_shape"
+                    android:clipToOutline="true"
+                    android:scaleType="centerCrop"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@+id/tvNick"
+                    app:layout_constraintHorizontal_bias="0.5"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:srcCompat="@tools:sample/avatars" />
+
+                <TextView
+                    android:id="@+id/tvNick"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="닉네임"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgProfile"
+                    app:layout_constraintStart_toEndOf="@+id/imgProfile"
+                    app:layout_constraintTop_toTopOf="@+id/imgProfile" />
+
+                <TextView
+                    android:id="@+id/tvLike"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:text="5"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgLikeOff"
+                    app:layout_constraintStart_toEndOf="@+id/imgLikeOff"
+                    app:layout_constraintTop_toTopOf="@+id/imgLikeOff"
+                    app:layout_constraintVertical_bias="0.0" />
+
+                <ImageView
+                    android:id="@+id/imgLikeOff"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgProfile"
+                    app:layout_constraintEnd_toStartOf="@+id/tvLike"
+                    app:layout_constraintHorizontal_chainStyle="packed"
+                    app:layout_constraintTop_toTopOf="@+id/imgProfile"
+                    app:srcCompat="@drawable/like_off" />
+
+                <ImageView
+                    android:id="@+id/imgComment"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgLikeOff"
+                    app:layout_constraintEnd_toStartOf="@+id/tvComment"
+                    app:layout_constraintHorizontal_chainStyle="packed"
+                    app:layout_constraintStart_toEndOf="@+id/tvLike"
+                    app:layout_constraintTop_toTopOf="@+id/imgLikeOff"
+                    app:srcCompat="@drawable/chat" />
+
+                <TextView
+                    android:id="@+id/tvComment"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:layout_marginEnd="10dp"
+                    android:text="3"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgComment"
+                    app:layout_constraintEnd_toStartOf="@+id/imgBookmark"
+                    app:layout_constraintStart_toEndOf="@+id/imgComment"
+                    app:layout_constraintTop_toTopOf="@+id/imgComment" />
+
+                <ImageView
+                    android:id="@+id/imgBookmark"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:adjustViewBounds="true"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/tvComment"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:srcCompat="@drawable/bookmark" />
+
+                <ImageView
+                    android:visibility="gone"
+                    android:id="@+id/imgBookmarkOn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:adjustViewBounds="true"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:srcCompat="@drawable/bookmark_on" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <TextView
+                android:id="@+id/tvBoardTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="게시물 제목입니다."
+                android:textSize="34sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/constraintLayout" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

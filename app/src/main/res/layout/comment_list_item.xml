@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:paddingBottom="20dp">
+
+    <ImageView
+        android:id="@+id/imgProfile"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/circle_profile_shape"
+        android:clipToOutline="true"
+        android:scaleType="centerCrop"
+        android:src="@drawable/circle_button"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvNick"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:text="닉네임"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/tvCommentContent"
+        app:layout_constraintStart_toEndOf="@+id/imgProfile"
+        app:layout_constraintTop_toTopOf="@+id/imgProfile" />
+
+    <TextView
+        android:id="@+id/tvCommentContent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="댓글 내용입니다."
+        app:layout_constraintBottom_toBottomOf="@+id/imgProfile"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/tvNick"
+        app:layout_constraintTop_toBottomOf="@+id/tvNick" />
+
+    <TextView
+        android:id="@+id/btnDeleteComment"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="삭제"
+        app:layout_constraintBottom_toBottomOf="@+id/tvNick"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tvNick" />
+
+    <TextView
+        android:id="@+id/btnEditComment"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:text="수정"
+        app:layout_constraintBottom_toBottomOf="@+id/btnDeleteComment"
+        app:layout_constraintEnd_toStartOf="@+id/btnDeleteComment"
+        app:layout_constraintTop_toTopOf="@+id/btnDeleteComment" />
+
+    <TextView
+        android:id="@+id/tvTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="5dp"
+        android:text="2025년 8월 6일 수정됨"
+        android:textSize="10sp"
+        app:layout_constraintBottom_toBottomOf="@+id/tvNick"
+        app:layout_constraintStart_toEndOf="@+id/tvNick"
+        app:layout_constraintTop_toTopOf="@+id/tvNick" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

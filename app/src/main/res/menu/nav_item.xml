@@ -4,14 +4,18 @@
 
     <item
         android:id="@+id/btnHome"
+        android:icon="@drawable/home_off"
         android:title="홈" />
     <item
         android:id="@+id/btnBoard"
+        android:icon="@drawable/board_off"
         android:title="게시글" />
     <item
         android:id="@+id/btnChat"
+        android:icon="@drawable/chat_off"
         android:title="채팅" />
     <item
         android:id="@+id/btnMyPage"
+        android:icon="@drawable/mypage_off"
         android:title="내 정보" />
 </menu>
