@@ -5,6 +5,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.example.lovebug_project.board.BoardMainFragment
 import com.example.lovebug_project.chat.ChatFragment
+import com.example.lovebug_project.chatlist.ChatListFragment
 import com.example.lovebug_project.databinding.ActivityMainBinding
 import com.example.lovebug_project.databinding.FragmentHomeBinding
 import com.example.lovebug_project.home.HomeFragment
@@ -16,7 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+//        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -36,9 +37,9 @@ class MainActivity : AppCompatActivity() {
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.frame, BoardMainFragment()).commit()
                 }
-                R.id.btnChat -> {
+                R.id.btnChat -> { // 수정된 부분
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.frame, ChatFragment()).commit()
+                        .replace(R.id.frame, ChatListFragment()).commit() // ChatListFragment로 변경
                 }
                 R.id.btnMyPage -> {
                     supportFragmentManager.beginTransaction()
