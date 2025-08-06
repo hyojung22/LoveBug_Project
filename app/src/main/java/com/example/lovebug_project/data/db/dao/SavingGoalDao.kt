@@ -12,11 +12,11 @@ interface SavingGoalDao {
      * 목표 금액 설정
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(goal: SavingGoal)
+    fun insert(goal: SavingGoal)
 
     /**
      * 특정 유저의 특정 월 목표 가져오기
      */
     @Query("SELECT * FROM saving_goals WHERE userId = :userId AND month = :month")
-    suspend fun getGoal(userId: Int, month: String): SavingGoal?
+    fun getGoal(userId: Int, month: String): SavingGoal?
 }

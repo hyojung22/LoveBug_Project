@@ -16,5 +16,5 @@ data class User(
     val userLoginId: String,
     val password: String,
     val profileImage : String?, // 이미지 URI 또는 경로
-    val shareSavingStats : Boolean = false, // 절약 성과 공유 여부
+    val sharedSavingStats : Boolean = false, // 절약 성과 공유 여부
 )

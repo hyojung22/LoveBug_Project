@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(./gradlew:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(rm:*)",
+      "Bash(.gradlew build)",
+      "Bash(gradlew:*)",
+      "Bash(.\\gradlew.bat build:*)"
+    ],
+    "deny": []
+  }
+}

@@ -71,13 +71,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="5dp"
                     android:text="5"
-                    app:layout_constraintBottom_toBottomOf="@+id/imgLikeOff"
-                    app:layout_constraintStart_toEndOf="@+id/imgLikeOff"
-                    app:layout_constraintTop_toTopOf="@+id/imgLikeOff"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgLike"
+                    app:layout_constraintStart_toEndOf="@+id/imgLike"
+                    app:layout_constraintTop_toTopOf="@+id/imgLike"
                     app:layout_constraintVertical_bias="0.0" />
 
                 <ImageView
-                    android:id="@+id/imgLikeOff"
+                    android:id="@+id/imgLike"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:layout_constraintBottom_toBottomOf="@+id/imgProfile"
@@ -91,11 +91,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    app:layout_constraintBottom_toBottomOf="@+id/imgLikeOff"
+                    app:layout_constraintBottom_toBottomOf="@+id/imgLike"
                     app:layout_constraintEnd_toStartOf="@+id/tvComment"
                     app:layout_constraintHorizontal_chainStyle="packed"
                     app:layout_constraintStart_toEndOf="@+id/tvLike"
-                    app:layout_constraintTop_toTopOf="@+id/imgLikeOff"
+                    app:layout_constraintTop_toTopOf="@+id/imgLike"
                     app:srcCompat="@drawable/chat" />
 
                 <TextView

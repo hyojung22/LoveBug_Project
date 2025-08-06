@@ -53,20 +53,19 @@
         android:text="내용"
         android:textSize="20sp"
         app:layout_constraintBottom_toBottomOf="@+id/checkTitle"
-        app:layout_constraintEnd_toStartOf="@+id/checkNickname"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/checkTitle"
         app:layout_constraintTop_toTopOf="@+id/checkTitle" />
 
-    <CheckBox
-        android:id="@+id/checkNickname"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:text="닉네임"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toBottomOf="@+id/checkContent"
-        app:layout_constraintStart_toEndOf="@+id/checkContent"
-        app:layout_constraintTop_toTopOf="@+id/checkContent" />
+<!--    <CheckBox-->
+<!--        android:id="@+id/checkNickname"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_marginStart="10dp"-->
+<!--        android:text="닉네임"-->
+<!--        android:textSize="20sp"-->
+<!--        app:layout_constraintBottom_toBottomOf="@+id/checkContent"-->
+<!--        app:layout_constraintStart_toEndOf="@+id/checkContent"-->
+<!--        app:layout_constraintTop_toTopOf="@+id/checkContent" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
