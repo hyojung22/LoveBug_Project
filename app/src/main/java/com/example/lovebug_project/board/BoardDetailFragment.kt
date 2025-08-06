@@ -2,6 +2,7 @@ package com.example.lovebug_project.board
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -104,9 +105,10 @@ class BoardDetailFragment : Fragment() {
         binding.etContent.setText(postExtra.post.content)
         binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
 
+        // 썸네일 이미지
         if (!postExtra.post.image.isNullOrEmpty()) {
             Glide.with(requireContext())
-                .load(postExtra.post.image)
+                .load(Uri.parse(postExtra.post.image))
                 .into(binding.imgBoard)
         } else {
             // 이미지가 없을 경우 기본 이미지 표시
@@ -139,12 +141,12 @@ class BoardDetailFragment : Fragment() {
         }
 
         // 상단 프로필 이미지
-        if (!postExtra.profileImage.isNullOrEmpty()) {
+        if (!postExtra.post.image.isNullOrEmpty()) {
             Glide.with(requireContext())
-                .load(postExtra.profileImage)
+                .load(postExtra.post.image)
                 .into(binding.imgProfile)
         } else {
-            binding.imgProfile.setImageResource(R.drawable.circle_button)
+            binding.imgProfile.setImageResource(R.drawable.ic_launcher_background)
         }
 
         // 하단 댓글 입력란 프로필 이미지
