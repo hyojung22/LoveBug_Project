@@ -14,7 +14,8 @@
         android:theme="@style/Theme.Lovebug_project">
         <activity
             android:name=".MainActivity"
-            android:exported="false" />
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize" /> <!-- 여기에 추가 -->
         <activity
             android:name=".board.BoardWriteActivity"
             android:exported="false" />
@@ -27,9 +28,9 @@
         <activity
             android:name=".SplashActivity"
             android:exported="true">
+            <!-- SplashActivity에서는 windowSoftInputMode가 필수는 아님 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
