@@ -1,16 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".chat.ChatFragment"
-    android:paddingVertical="30dp"
-    android:paddingHorizontal="20dp">
+    tools:context=".chat.ChatFragment">
 
-    <!-- TODO: Update blank fragment layout -->
-    <TextView
+    <LinearLayout
+        android:id="@+id/layoutInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:layout_alignParentBottom="true">
+
+        <EditText
+            android:id="@+id/editTextMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="메시지를 입력하세요..."
+            android:inputType="textMultiLine"
+            android:maxLines="4"/>
+
+        <Button
+            android:id="@+id/buttonSend"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#FFD200"
+            android:text="전송"
+            android:textColor="#000000"
+            app:cornerRadius="2dp" /> <!-- 노란색 (Material Yellow 500) -->
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewChat"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:text="채팅페이지입니다" />
+        android:layout_above="@id/layoutInput"
+        android:padding="8dp"
+        tools:listitem="@layout/item_chat_message_sent"/>
 
-</FrameLayout>
+</RelativeLayout>

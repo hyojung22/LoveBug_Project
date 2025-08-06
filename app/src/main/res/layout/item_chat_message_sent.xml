@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="4dp"
+    android:paddingStart="64dp"
+    android:paddingEnd="8dp"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:id="@+id/layoutMessageContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chat_message_sent"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintWidth_max="wrap">
+
+        <TextView
+            android:id="@+id/textViewMessageText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            tools:text="이것은 내가 보낸 메시지입니다. 내용이 길면 자동으로 줄바꿈됩니다." />
+
+        <LinearLayout
+            android:id="@+id/layoutMetaContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/layoutLikes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingEnd="8dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ImageView
+                    android:id="@+id/imageViewLikeIcon"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    app:tint="@color/like_icon_color_sent"
+                    tools:src="@drawable/like_on" />
+
+                <TextView
+                    android:id="@+id/textViewLikeCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/like_icon_color_sent"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    tools:text="1" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textViewTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B0B0B0"
+                android:textSize="10sp"
+                tools:text="오후 03:10" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+
