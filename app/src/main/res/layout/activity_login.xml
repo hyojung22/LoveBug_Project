@@ -7,6 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".auth.LoginActivity"
     android:paddingVertical="30dp"
-    android:paddingHorizontal="20dp">
+    android:paddingHorizontal="20dp"
+    android:background="@color/white">
 
 </androidx.constraintlayout.widget.ConstraintLayout>

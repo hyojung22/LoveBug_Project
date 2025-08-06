@@ -7,12 +7,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.example.lovebug_project.R
+import com.example.lovebug_project.databinding.FragmentBoardDetailBinding
 import com.example.lovebug_project.databinding.FragmentBoardMainBinding
 
-class BoardMainFragment : Fragment() {
-
+class BoardDetailFragment : Fragment() {
     // binding 인스턴스를 nullable로 선언
-    private var _binding: FragmentBoardMainBinding? = null
+    private var _binding: FragmentBoardDetailBinding? = null
     // 안전하게 binding을 꺼내 쓰는 프로퍼티
     private val binding get() = _binding!!
 
@@ -21,7 +21,7 @@ class BoardMainFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         // inflate 대신 binding.inflate 사용
-        _binding = FragmentBoardMainBinding.inflate(inflater, container, false)
+        _binding = FragmentBoardDetailBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -29,11 +29,6 @@ class BoardMainFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         // 예: binding.spinnerSort, binding.rvBoard 등 바로 접근 가능
 
-        // 글 작성 버튼 클릭 시 게시물 작성 페이지로 이동
-        binding.btnWrite.circleButton.setOnClickListener {
-            val intent = Intent(requireActivity(), BoardWriteActivity::class.java)
-            startActivity(intent)
-        }
 
     }
 
