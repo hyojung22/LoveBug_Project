@@ -1,6 +1,8 @@
 package com.example.lovebug_project.data.db
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.lovebug_project.data.db.dao.BookmarkDao
 import com.example.lovebug_project.data.db.dao.ChatDao
@@ -53,4 +55,23 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun chatMessageDao(): ChatMessageDao
 
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getDatabase(context: Context): AppDatabase {
+            // 다중 인스턴스 방지를 위한 동기화 블록
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "lovebug_database"
+                )
+                .fallbackToDestructiveMigration() // 개발용 - 스키마 변경 허용
+                .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
 }

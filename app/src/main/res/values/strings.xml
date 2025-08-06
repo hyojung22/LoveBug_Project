@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">lovebug_project</string>
-    <!-- TODO: Remove or change this placeholder text -->
+    <!-- TODO: 이 플레이스홀더 텍스트를 제거하거나 변경하세요 -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 
     <!-- 게시물 페이지의 정렬순   -->

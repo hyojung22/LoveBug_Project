@@ -74,12 +74,12 @@
                 android:id="@+id/ll_target_amount"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingVertical="8dp"
-                android:paddingHorizontal="4dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:orientation="horizontal"
+                android:paddingHorizontal="4dp"
+                android:paddingVertical="8dp">
 
                 <TextView
                     android:layout_width="0dp"
@@ -93,20 +93,20 @@
                     android:id="@+id/tv_target_amount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
                     android:text="100,000"
                     android:textColor="@color/black"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginEnd="8dp" />
+                    android:textStyle="bold" />
 
                 <ImageView
                     android:id="@+id/iv_edit_target"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_gravity="center_vertical"
+                    android:contentDescription="목표 금액 편집"
                     android:src="@drawable/ic_edit"
-                    android:tint="@color/gray"
-                    android:contentDescription="목표 금액 편집" />
+                    android:tint="@color/gray" />
 
             </LinearLayout>
 
@@ -274,7 +274,7 @@
 
         </LinearLayout>
 
-        <!-- Kizitonwose Calendar -->
+        <!-- Kizitonwose 캘린더 -->
         <com.kizitonwose.calendar.view.CalendarView
             android:id="@+id/calendarView"
             android:layout_width="match_parent"

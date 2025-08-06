@@ -38,5 +38,11 @@ interface ExpenseDao {
      * 특정 날짜의 지출 내역 가져오기
      */
     @Query("SELECT * FROM expenses WHERE userId = :userId AND date = :date")
-    fun getExpensesByDate(userId: Int, date: String): List<Expense>
+    suspend fun getExpensesByDate(userId: Int, date: String): List<Expense>
+
+    /**
+     * ID로 특정 지출 내역 가져오기
+     */
+    @Query("SELECT * FROM expenses WHERE expenseId = :id")
+    suspend fun getExpenseById(id: Int): Expense?
 }

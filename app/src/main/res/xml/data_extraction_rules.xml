@@ -5,7 +5,7 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
+        <!-- TODO: <include>과 <exclude>를 사용하여 백업 대상을 제어하세요.
         <include .../>
         <exclude .../>
         -->
