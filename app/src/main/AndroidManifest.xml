@@ -41,10 +41,10 @@
             android:name=".auth.JoinActivity"
             android:exported="false" />
         <activity
-            android:name=".auth.LoginActivity"
+            android:name=".auth.PayActivity"
             android:exported="false" />
         <activity
-            android:name=".auth.PayActivity"
+            android:name=".auth.LoginActivity"
             android:exported="true">
 
             <!-- SplashActivity에서는 windowSoftInputMode가 필수는 아님 -->

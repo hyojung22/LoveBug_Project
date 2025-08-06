@@ -116,7 +116,7 @@ class ExpenseRegisterActivity : AppCompatActivity() {
                         userLoginId = "temp_$userId",
                         password = "temp_password",
                         profileImage = null,
-                        shareSavingStats = false
+                        sharedSavingStats = false
                     )
                     database.userDao().insert(tempUser)
                 }
