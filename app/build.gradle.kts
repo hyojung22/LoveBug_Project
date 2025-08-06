@@ -40,6 +40,12 @@ android {
 }
 
 dependencies {
+    // Volley
+    implementation("com.android.volley:volley:1.2.1")
+
+    // Glide 이미지 생성 추가
+    implementation("com.github.bumptech.glide:glide:4.11.0")
+
     // ✅ Room 추가
     implementation(libs.room.runtime)
     kapt(libs.room.compiler)

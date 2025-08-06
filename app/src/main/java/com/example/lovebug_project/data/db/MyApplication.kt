@@ -20,7 +20,9 @@ class MyApplication : Application() {
             applicationContext,
             AppDatabase::class.java,
             "lovebug.db" // 실제 생성된 DB 파일 이름
-        ).fallbackToDestructiveMigration() // 버전 변경 시 기존 DB 삭제
+        )
+            .allowMainThreadQueries() // 메인 스레드에서 DB 접근 허용
+            .fallbackToDestructiveMigration() // 버전 변경 시 기존 DB 삭제
             .build()
     }
 }

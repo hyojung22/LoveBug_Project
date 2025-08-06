@@ -75,13 +75,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="5dp"
                 android:text="5"
-                app:layout_constraintBottom_toBottomOf="@+id/imgLikeOff"
-                app:layout_constraintStart_toEndOf="@+id/imgLikeOff"
-                app:layout_constraintTop_toTopOf="@+id/imgLikeOff"
+                app:layout_constraintBottom_toBottomOf="@+id/imgLike"
+                app:layout_constraintStart_toEndOf="@+id/imgLike"
+                app:layout_constraintTop_toTopOf="@+id/imgLike"
                 app:layout_constraintVertical_bias="0.0" />
 
             <ImageView
-                android:id="@+id/imgLikeOff"
+                android:id="@+id/imgLike"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -95,9 +95,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="30dp"
                 android:adjustViewBounds="true"
-                app:layout_constraintBottom_toBottomOf="@+id/imgLikeOff"
+                app:layout_constraintBottom_toBottomOf="@+id/imgLike"
                 app:layout_constraintEnd_toEndOf="@+id/imgBoard"
-                app:layout_constraintTop_toTopOf="@+id/imgLikeOff"
+                app:layout_constraintTop_toTopOf="@+id/imgLike"
                 app:srcCompat="@drawable/bookmark" />
 
             <EditText
@@ -115,8 +115,8 @@
                 android:scrollbars="vertical"
                 android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="@+id/imgBoard"
-                app:layout_constraintStart_toStartOf="@+id/imgLikeOff"
-                app:layout_constraintTop_toBottomOf="@+id/imgLikeOff" />
+                app:layout_constraintStart_toStartOf="@+id/imgLike"
+                app:layout_constraintTop_toBottomOf="@+id/imgLike" />
 
             <ImageView
                 android:id="@+id/imgComment"
