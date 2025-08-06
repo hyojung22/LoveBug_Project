@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("org.jetbrains.kotlin.kapt") // ✅ 명시적으로 추가 (버전 없이!)
 }
 
 android {
@@ -39,6 +40,11 @@ android {
 }
 
 dependencies {
+    // ✅ Room 추가
+    implementation(libs.room.runtime)
+    kapt(libs.room.compiler)
+    implementation(libs.room.ktx)
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
