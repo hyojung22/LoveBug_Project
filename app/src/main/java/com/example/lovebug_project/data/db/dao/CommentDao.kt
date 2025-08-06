@@ -33,4 +33,11 @@ interface CommentDao {
      */
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY createdAt ASC")
     fun getCommentsByPost(postId: Int): List<Comment>
+
+    @Query("SELECT COUNT(*) FROM comments WHERE postId = :postId")
+    fun getCommentCountByPost(postId: Int): Int
+
+    // ✅ 댓글 내용과 수정 시간만 업데이트
+    @Query("UPDATE comments SET content = :newContent, updateAt = :updatedAt WHERE commentId = :commentId")
+    fun updateCommentContent(commentId: Int, newContent: String, updatedAt: String)
 }

@@ -26,4 +26,10 @@ interface LikeDao {
      */
     @Query("SELECT COUNT(*) FROM likes WHERE postId = :postId")
     fun getLikeCountByPost(postId: Int): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM likes WHERE postId = :postId AND userId = :userId)")
+    fun isPostLikedByUser(userId: Int, postId: Int): Boolean
+
+    @Query("DELETE FROM likes WHERE postId = :postId AND userId = :userId")
+    fun deleteLike(userId: Int, postId: Int)
 }

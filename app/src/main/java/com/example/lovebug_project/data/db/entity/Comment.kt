@@ -19,7 +19,7 @@ data class Comment (
     @PrimaryKey(autoGenerate = true) val commentId: Int = 0,
     val postId: Int,
     val userId: Int,
-    val content: String,
+    var content: String,
     val createdAt: String,
     val updateAt: String? = null
 )

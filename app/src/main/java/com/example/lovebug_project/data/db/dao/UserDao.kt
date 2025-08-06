@@ -14,7 +14,7 @@ interface UserDao {
      * 회원 가입
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insert(user: User)
+    fun insert(user: User): Long // id 리턴 받기 위함
 
     /**
      * 로그인 (ID와 비밀번호로 조회)

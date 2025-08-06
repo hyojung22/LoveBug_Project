@@ -37,7 +37,7 @@ import com.example.lovebug_project.data.db.entity.User
         Chat::class,
         ChatMessage::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

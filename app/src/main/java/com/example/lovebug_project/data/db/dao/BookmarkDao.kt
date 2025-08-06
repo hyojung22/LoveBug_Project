@@ -26,4 +26,7 @@ interface BookmarkDao {
      */
     @Query("SELECT * FROM bookmarks WHERE userId = :userId")
     fun getBookmarksByUser(userId: Int): List<Bookmark>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarks WHERE userId = :userId AND postId = :postId)")
+    fun isPostBookmarkedByUser(userId: Int, postId: Int): Boolean
 }
