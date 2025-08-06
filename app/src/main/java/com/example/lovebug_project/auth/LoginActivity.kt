@@ -21,6 +21,12 @@ class LoginActivity : AppCompatActivity() {
 
         setContentView(binding.root)
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
         // 로그인 버튼
         val loginButton = binding.loginBtn
 
@@ -62,5 +68,14 @@ class LoginActivity : AppCompatActivity() {
             // startActivity() 메소드에 intent를 전달하여 새로운 액티비티를 시작합니다.
             startActivity(intent)
         }
+
+        loginButton.setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+
+            startActivity(intent)
+
+            finish()
+        }
+
     }
 }

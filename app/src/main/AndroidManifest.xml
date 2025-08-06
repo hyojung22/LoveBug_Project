@@ -16,8 +16,14 @@
         android:theme="@style/Theme.Lovebug_project"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".auth.LoginActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SplashActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
-            android:exported="true"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize" /> <!-- 여기에 추가 -->
         <activity
             android:name=".expense.ExpenseDetailActivity"
@@ -35,14 +41,16 @@
             android:name=".auth.JoinActivity"
             android:exported="false" />
         <activity
-            android:name=".auth.LoginActivity"
+            android:name=".auth.PayActivity"
             android:exported="false" />
         <activity
-            android:name=".SplashActivity"
+            android:name=".auth.WelcomeActivity"
             android:exported="true">
+
             <!-- SplashActivity에서는 windowSoftInputMode가 필수는 아님 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
