@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.view.Gravity
 import com.example.lovebug_project.R
 import com.example.lovebug_project.databinding.FragmentHomeBinding
+import com.example.lovebug_project.expense.ExpenseDetailActivity
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
@@ -218,14 +219,15 @@ class HomeFragment : Fragment() {
                         binding.calendarView.notifyDateChanged(currentSelection)
                     }
                     
-                    // Show expense registration option
-                    val existingExpense = expenseData[day.date]
-                    val message = if (existingExpense != null) {
-                        "${day.date.monthValue}월 ${day.date.dayOfMonth}일 지출: ${String.format("%,d", existingExpense)}원"
-                    } else {
-                        "${day.date.monthValue}월 ${day.date.dayOfMonth}일에 지출을 등록하세요!"
-                    }
-                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    // Navigate to detail
+                    
+                    // Navigate to ExpenseDetailActivity
+                    val intent = ExpenseDetailActivity.newIntent(
+                        requireContext(), 
+                        day.date, 
+                        1 // Sample user ID - in real app this would come from user session
+                    )
+                    startActivity(intent)
                 }
             }
             DayPosition.InDate -> {
@@ -242,14 +244,15 @@ class HomeFragment : Fragment() {
                 }
                 binding.calendarView.notifyDateChanged(day.date)
                 
-                // 지출 정보 토스트 메시지 표시
-                val existingExpense = expenseData[day.date]
-                val message = if (existingExpense != null) {
-                    "${day.date.monthValue}월 ${day.date.dayOfMonth}일 지출: ${String.format("%,d", existingExpense)}원"
-                } else {
-                    "${day.date.monthValue}월 ${day.date.dayOfMonth}일에 지출을 등록하세요!"
-                }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                // 상세 화면으로 이동
+                
+                // Navigate to ExpenseDetailActivity
+                val intent = ExpenseDetailActivity.newIntent(
+                    requireContext(), 
+                    day.date, 
+                    1 // Sample user ID - in real app this would come from user session
+                )
+                startActivity(intent)
             }
             DayPosition.OutDate -> {
                 // 다음 월로 이동
@@ -265,14 +268,15 @@ class HomeFragment : Fragment() {
                 }
                 binding.calendarView.notifyDateChanged(day.date)
                 
-                // 지출 정보 토스트 메시지 표시
-                val existingExpense = expenseData[day.date]
-                val message = if (existingExpense != null) {
-                    "${day.date.monthValue}월 ${day.date.dayOfMonth}일 지출: ${String.format("%,d", existingExpense)}원"
-                } else {
-                    "${day.date.monthValue}월 ${day.date.dayOfMonth}일에 지출을 등록하세요!"
-                }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                // 상세 화면으로 이동
+                
+                // Navigate to ExpenseDetailActivity
+                val intent = ExpenseDetailActivity.newIntent(
+                    requireContext(), 
+                    day.date, 
+                    1 // Sample user ID - in real app this would come from user session
+                )
+                startActivity(intent)
             }
         }
     }

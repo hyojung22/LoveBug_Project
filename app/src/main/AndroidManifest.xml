@@ -17,6 +17,15 @@
             android:exported="true"
             android:windowSoftInputMode="adjustResize" /> <!-- 여기에 추가 -->
         <activity
+            android:name=".expense.ExpenseDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".expense.ExpenseRegisterActivity"
+            android:exported="false"
+            android:parentActivityName=".expense.ExpenseDetailActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".board.BoardWriteActivity"
             android:exported="false" />
         <activity
