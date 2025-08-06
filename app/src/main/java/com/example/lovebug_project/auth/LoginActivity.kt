@@ -68,5 +68,14 @@ class LoginActivity : AppCompatActivity() {
             // startActivity() 메소드에 intent를 전달하여 새로운 액티비티를 시작합니다.
             startActivity(intent)
         }
+
+        loginButton.setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+
+            startActivity(intent)
+
+            finish()
+        }
+
     }
 }
