@@ -1,5 +1,6 @@
 package com.example.lovebug_project.auth
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -8,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.lovebug_project.R
+import com.example.lovebug_project.data.db.MyApplication
+import com.example.lovebug_project.data.db.entity.User
 import com.example.lovebug_project.databinding.ActivityJoinBinding
 
 class JoinActivity : AppCompatActivity() {
@@ -33,16 +36,30 @@ class JoinActivity : AppCompatActivity() {
             val id = binding.inputId.text.toString().trim()
             val password = binding.inputPassword.text.toString().trim()
 
-            if(name.isEmpty() || nickname.isEmpty() || id.isEmpty() || password.isEmpty()) {
+            if (name.isEmpty() || nickname.isEmpty() || id.isEmpty() || password.isEmpty()) {
                 Toast.makeText(this, "모든 항목을 입력해주세요.", Toast.LENGTH_SHORT).show()
-            } else {
-                // 회원가입 성공 토스트 메시지를 보여줍니다.
-                Toast.makeText(this, "등록 완료!", Toast.LENGTH_SHORT).show()
-
-                // finish()를 호출하여 현재 액티비티(JoinActivity)를 종료합니다.
-                // 이렇게 하면 이전 화면이었던 LoginActivity로 자동으로 돌아갑니다.
-                finish()
+                return@setOnClickListener
             }
+
+            // User 객체 생성
+            val newUser = User(
+                username = name,
+                nickname = nickname,
+                userLoginId = id,
+                password = password,
+                profileImage = null
+            )
+
+            // DB에 저장
+            MyApplication.database.userDao().insert(newUser)
+
+            Toast.makeText(this, "등록 완료!", Toast.LENGTH_SHORT).show()
+
+            // PayActivity로 이동
+            startActivity(Intent(this, PayActivity::class.java))
+            finish()
+
+
         }
     }
 }

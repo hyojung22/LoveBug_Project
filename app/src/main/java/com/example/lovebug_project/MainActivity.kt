@@ -31,9 +31,6 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        if (intent.getBooleanExtra("navigateToBoard", false)) {
-            binding.nav.selectedItemId = R.id.btnBoard
-
         // 하드웨어 뒤로가기 버튼 처리
         onBackPressedDispatcher.addCallback(this) {
             val frame2 = findViewById<View>(R.id.frame2)

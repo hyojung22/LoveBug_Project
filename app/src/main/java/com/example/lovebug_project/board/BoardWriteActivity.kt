@@ -79,10 +79,12 @@ class BoardWriteActivity : AppCompatActivity() {
             )
 
             val postDao = MyApplication.database.postDao()
-            postDao.insert(newPost)
+            // Insert하고 반환된 ID를 받음
+            val newId = postDao.insert(newPost).toInt()
+            // 그 ID로 방금 저장한 글을 조회
 
             // 저장된 최신 글 가져오기
-            val savedPost = postDao.getAllPosts().firstOrNull() ?: return@setOnClickListener
+            val savedPost = postDao.getPostById(newId) ?: return@setOnClickListener
 
             val userDao = MyApplication.database.userDao()
             val nickname = userDao.getUserById(savedPost.userId)?.nickname ?: "알 수 없음"
@@ -99,23 +101,23 @@ class BoardWriteActivity : AppCompatActivity() {
                 isBookmarked = false
             )
 
-            val intent = Intent(this, MainActivity::class.java).apply {
-                putExtra("navigateToBoard", true)
-            }
-            startActivity(intent)
-            finish()
-
-//            // 상세 페이지로 이동
-//            val fragment = BoardDetailFragment().apply {
-//                arguments = Bundle().apply {
-//                    putSerializable("postExtra", postWithExtras)
-//                }
+//            val intent = Intent(this, MainActivity::class.java).apply {
+//                putExtra("navigateToBoard", true)
 //            }
-//
-//            supportFragmentManager.beginTransaction()
-//                .replace(R.id.frame, fragment) // FrameLayout ID 확인 필요
-//                .addToBackStack(null)
-//                .commit()
+//            startActivity(intent)
+//            finish()
+
+            // 상세 페이지로 이동
+            val fragment = BoardDetailFragment().apply {
+                arguments = Bundle().apply {
+                    putSerializable("postExtra", postWithExtras)
+                }
+            }
+
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.frame2, fragment) // FrameLayout ID 확인 필요
+                .addToBackStack(null)
+                .commit()
         }
     }
 

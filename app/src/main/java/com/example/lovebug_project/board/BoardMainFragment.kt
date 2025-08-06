@@ -3,7 +3,6 @@ package com.example.lovebug_project.board
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -43,6 +42,13 @@ class BoardMainFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // 예: binding.spinnerSort, binding.rvBoard 등 바로 접근 가능
+
+        // 🗑️ 삭제 리스너: 상세에서 전달된 삭제 이벤트 수신
+        parentFragmentManager.setFragmentResultListener("postDeleted", viewLifecycleOwner) { _, bundle ->
+            val deletedId = bundle.getInt("postId")
+            fullPostList.removeAll { it.post.postId == deletedId }
+            boardAdapter.setPosts(fullPostList)
+        }
 
         // ✅ 좋아요 변경 결과 수신
         parentFragmentManager.setFragmentResultListener("likeUpdate", viewLifecycleOwner) { _, bundle ->
@@ -180,6 +186,12 @@ class BoardMainFragment : Fragment() {
 
         }
 
+    }
+
+    // 화면 복귀 시 목록 갱신
+    override fun onResume() {
+        super.onResume()
+        loadPostFromDB()
     }
 
     override fun onDestroyView() {

@@ -83,11 +83,8 @@ class PayActivity : AppCompatActivity() {
 //                startActivity(intent)
 //            }
 
-            submitBtn.setOnClickListener {
-                val intent = Intent(this, WelcomeActivity::class.java)
-
-                startActivity(intent)
-            }
+            Intent(this, WelcomeActivity::class.java).also { startActivity(it) }
+            finish()
 
         }
     }

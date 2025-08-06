@@ -27,4 +27,12 @@ interface PostDao {
      */
     @Query("SELECT * FROM posts WHERE userId = :userId")
     fun getPostsByUser(userId: Int): List<Post>
+
+    // 최신 글 하나
+    @Query("SELECT * FROM posts ORDER BY postId DESC LIMIT 1")
+    fun getLatestPost(): Post?
+
+    /** ID로 게시글 삭제 */
+    @Query("DELETE FROM posts WHERE postId = :postId")
+    fun deleteById(postId: Int)
 }
