@@ -5,6 +5,8 @@ import android.view.View
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.example.lovebug_project.board.BoardMainFragment
 import com.example.lovebug_project.chat.ChatFragment
 import com.example.lovebug_project.chatlist.ChatListFragment
@@ -22,6 +24,12 @@ class MainActivity : AppCompatActivity() {
 //        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
 
         // 하드웨어 뒤로가기 버튼 처리
         onBackPressedDispatcher.addCallback(this) {

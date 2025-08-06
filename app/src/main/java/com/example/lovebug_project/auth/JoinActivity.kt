@@ -5,6 +5,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.example.lovebug_project.R
 import com.example.lovebug_project.databinding.ActivityJoinBinding
 
@@ -15,6 +17,12 @@ class JoinActivity : AppCompatActivity() {
 
         val binding = ActivityJoinBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
 
         val signUpBtn = binding.btnRegister
 

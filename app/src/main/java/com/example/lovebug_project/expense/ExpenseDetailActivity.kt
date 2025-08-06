@@ -15,6 +15,8 @@ import com.example.lovebug_project.databinding.ActivityExpenseDetailBinding
 import com.example.lovebug_project.expense.adapter.ExpenseListAdapter
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -45,6 +47,12 @@ class ExpenseDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityExpenseDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
         
         // MyApplication을 사용하여 데이터베이스 초기화
         database = MyApplication.database
