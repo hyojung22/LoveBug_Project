@@ -16,6 +16,11 @@ import android.view.Gravity
 import com.example.lovebug_project.R
 import com.example.lovebug_project.databinding.FragmentHomeBinding
 import com.example.lovebug_project.expense.ExpenseDetailActivity
+import com.example.lovebug_project.data.db.AppDatabase
+import com.example.lovebug_project.data.db.MyApplication
+import com.example.lovebug_project.data.db.entity.Expense
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
@@ -35,16 +40,14 @@ class HomeFragment : Fragment() {
     private var selectedDate: LocalDate? = null
     private var currentMonth = YearMonth.now()
     
-    // Sample expense data - in real app, this would come from database/repository
-    private val expenseData = mutableMapOf<LocalDate, Int>().apply {
-        put(LocalDate.of(2025, 8, 1), 8900)
-        put(LocalDate.of(2025, 8, 2), 20000)
-        put(LocalDate.of(2025, 8, 5), 15000)
-        put(LocalDate.of(2025, 8, 10), 5000)
-        put(LocalDate.of(2025, 8, 15), 12000)
-    }
+    // 데이터베이스 인스턴스
+    private lateinit var database: AppDatabase
+    
+    // 데이터베이스에서 로드된 지출 데이터 - 날짜별 총 지출 금액 맵
+    private val expenseData = mutableMapOf<LocalDate, Int>()
     
     private var monthlyBudget = 100000 // 목표 금액
+    private val currentUserId = 1 // 샘플 유저 ID - 실제 앱에서는 유저 세션에서 가져와야 함
     
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -57,9 +60,14 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // 데이터베이스 초기화
+        database = MyApplication.database
+        
         setupCalendar()
         setupClickListeners()
-        updateExpenseInfo()
+        
+        // 현재 월의 지출 데이터 로드
+        loadExpenseDataForCurrentMonth()
     }
     
     private fun setupCalendar() {
@@ -83,13 +91,13 @@ class HomeFragment : Fragment() {
                 if (data.position == DayPosition.MonthDate) {
                     dayTextView.visibility = View.VISIBLE
                     
-                    // Show expense amount if exists
+                    // 지출 금액이 있으면 표시
                     val expense = expenseData[data.date]
                     if (expense != null) {
                         amountTextView.visibility = View.VISIBLE
                         amountTextView.text = "${String.format("%,d", expense)}"
                         
-                        // Set background color based on expense amount
+                        // 지출 금액에 따라 배경색 설정
                         when {
                             expense > 15000 -> {
                                 container.view.setBackgroundResource(R.drawable.calendar_day_background)
@@ -113,7 +121,7 @@ class HomeFragment : Fragment() {
                         container.view.backgroundTintList = null
                     }
                     
-                    // Handle selection and today highlighting
+                    // 선택 상태 및 오늘 날짜 강조 표시 처리
                     val isToday = data.date == LocalDate.now()
                     
                     if (selectedDate == data.date) {
@@ -144,12 +152,12 @@ class HomeFragment : Fragment() {
             }
         }
         
-        // Add scroll listener to update month display when swiping
+        // 스와이프 시 월 표시를 업데이트하기 위한 스크롤 리스너 추가
         binding.calendarView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
                 
-                // Update when scroll is idle (user finished scrolling/swiping)
+                // 스크롤이 멈췄을 때 업데이트 (사용자가 스크롤/스와이프를 완료함)
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     val visibleMonth = binding.calendarView.findFirstVisibleMonth()
                     visibleMonth?.let { month ->
@@ -188,7 +196,7 @@ class HomeFragment : Fragment() {
     private fun updateMonthDisplay() {
         val formatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
         binding.tvCurrentMonth.text = currentMonth.format(formatter)
-        updateExpenseInfo()
+        loadExpenseDataForCurrentMonth()
     }
     
     private fun updateExpenseInfo() {
@@ -200,9 +208,44 @@ class HomeFragment : Fragment() {
         binding.tvTotalExpense.text = String.format("%,d", monthExpenses)
         binding.tvRemainingAmount.text = String.format("%,d", monthlyBudget - monthExpenses)
         
-        // Update month display
+        // 월 표시 업데이트
         val formatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
         binding.tvCurrentMonth.text = currentMonth.format(formatter)
+    }
+    
+    private fun loadExpenseDataForCurrentMonth() {
+        lifecycleScope.launch {
+            try {
+                // 데이터베이스 쿼리를 위한 "YYYY-MM" 형식의 월 문자열 가져오기
+                val monthString = currentMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                
+                // 데이터베이스에서 현재 월의 지출 내역 로드
+                val expenses = database.expenseDao().getExpenseByMonth(currentUserId, monthString)
+                
+                // 현재 데이터를 초기화하고 일별 총계 계산
+                expenseData.clear()
+                
+                // 날짜별로 지출을 그룹화하고 금액 합계 계산
+                expenses.groupBy { expense ->
+                    LocalDate.parse(expense.date)
+                }.forEach { (date, expensesForDate) ->
+                    val dailyTotal = expensesForDate.sumOf { it.amount }
+                    expenseData[date] = dailyTotal
+                }
+                
+                // UI 업데이트
+                updateExpenseInfo()
+                
+                // 새로운 데이터를 보여주기 위해 캘린더 새로고침
+                binding.calendarView.notifyCalendarChanged()
+                
+            } catch (e: Exception) {
+                // 에러를 조용히 처리하거나 토스트 표시
+                e.printStackTrace()
+                // 선택사항: 에러 토스트 표시
+                // Toast.makeText(requireContext(), "지출 데이터 로드 실패", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     
     private fun onDateClick(day: CalendarDay) {
@@ -219,13 +262,13 @@ class HomeFragment : Fragment() {
                         binding.calendarView.notifyDateChanged(currentSelection)
                     }
                     
-                    // Navigate to detail
+                    // 상세 화면으로 이동
                     
-                    // Navigate to ExpenseDetailActivity
+                    // ExpenseDetailActivity로 이동
                     val intent = ExpenseDetailActivity.newIntent(
                         requireContext(), 
                         day.date, 
-                        1 // Sample user ID - in real app this would come from user session
+                        currentUserId
                     )
                     startActivity(intent)
                 }
@@ -246,11 +289,11 @@ class HomeFragment : Fragment() {
                 
                 // 상세 화면으로 이동
                 
-                // Navigate to ExpenseDetailActivity
+                // ExpenseDetailActivity로 이동
                 val intent = ExpenseDetailActivity.newIntent(
                     requireContext(), 
                     day.date, 
-                    1 // Sample user ID - in real app this would come from user session
+                    currentUserId
                 )
                 startActivity(intent)
             }
@@ -270,11 +313,11 @@ class HomeFragment : Fragment() {
                 
                 // 상세 화면으로 이동
                 
-                // Navigate to ExpenseDetailActivity
+                // ExpenseDetailActivity로 이동
                 val intent = ExpenseDetailActivity.newIntent(
                     requireContext(), 
                     day.date, 
-                    1 // Sample user ID - in real app this would come from user session
+                    currentUserId
                 )
                 startActivity(intent)
             }
@@ -297,7 +340,7 @@ class HomeFragment : Fragment() {
         // 메인 레이아웃 생성
         val dialogLayout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 24) // Material Design spacing
+            setPadding(48, 32, 48, 24) // Material Design 스페이싱
             gravity = Gravity.CENTER
         }
         
@@ -393,7 +436,7 @@ class HomeFragment : Fragment() {
         // TextInputLayout과 TextInputEditText를 포함한 레이아웃 생성
         val dialogLayout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 24) // Material Design spacing
+            setPadding(48, 32, 48, 24) // Material Design 스페이싱
         }
         
         // TextInputLayout 생성
@@ -441,6 +484,12 @@ class HomeFragment : Fragment() {
                 dialog.dismiss()
             }
             .show()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // ExpenseDetailActivity에서 돌아올 때 지출 데이터 새로고침
+        loadExpenseDataForCurrentMonth()
     }
     
     override fun onDestroyView() {

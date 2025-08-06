@@ -274,7 +274,7 @@
 
         </LinearLayout>
 
-        <!-- Kizitonwose Calendar -->
+        <!-- Kizitonwose 캘린더 -->
         <com.kizitonwose.calendar.view.CalendarView
             android:id="@+id/calendarView"
             android:layout_width="match_parent"

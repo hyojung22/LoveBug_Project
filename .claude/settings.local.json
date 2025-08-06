@@ -6,7 +6,10 @@
       "mcp__context7__get-library-docs",
       "Bash(./gradlew:*)",
       "WebFetch(domain:github.com)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(.gradlew build)",
+      "Bash(gradlew:*)",
+      "Bash(.\\gradlew.bat build:*)"
     ],
     "deny": []
   }

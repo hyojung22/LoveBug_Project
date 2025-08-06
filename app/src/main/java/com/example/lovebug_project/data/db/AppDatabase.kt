@@ -60,14 +60,14 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
-            // Synchronized block to prevent multiple instances
+            // 다중 인스턴스 방지를 위한 동기화 블록
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "lovebug_database"
                 )
-                .fallbackToDestructiveMigration() // For development - allows schema changes
+                .fallbackToDestructiveMigration() // 개발용 - 스키마 변경 허용
                 .build()
                 INSTANCE = instance
                 instance
