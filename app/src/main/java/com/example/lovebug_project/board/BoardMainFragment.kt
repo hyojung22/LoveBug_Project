@@ -206,17 +206,57 @@ class BoardMainFragment : Fragment() {
     private fun loadPostFromDB() {
         lifecycleScope.launch {
             try {
-                // TODO: Replace with complete Supabase implementation
-                // Temporarily using empty list until full migration is complete
-                val emptyPostList = listOf<com.example.lovebug_project.data.db.entity.PostWithExtras>()
+                val repositoryManager = MyApplication.repositoryManager
+                val result = repositoryManager.cachedPostRepository.getAllPosts(
+                    limit = 50,
+                    offset = 0,
+                    forceRefresh = true // Force refresh to ensure we get latest posts
+                )
                 
-                // UI 업데이트는 메인 스레드에서 수행
-                boardAdapter.setPosts(emptyPostList)
-                fullPostList.clear()
-                fullPostList.addAll(emptyPostList) // 필터링용 원본 유지
+                result.fold(
+                    onSuccess = { supabasePosts ->
+                        // Convert Supabase Posts to PostWithExtras and sort by postId descending (newest first)
+                        val postWithExtrasList = supabasePosts.map { supabasePost ->
+                            // Create PostWithExtras with Room Post entity
+                            PostWithExtras(
+                                post = com.example.lovebug_project.data.db.entity.Post(
+                                    postId = supabasePost.postId,
+                                    userId = supabasePost.userId.hashCode(), // Temporary conversion
+                                    title = supabasePost.title,
+                                    content = supabasePost.content,
+                                    image = supabasePost.image,
+                                    createdAt = supabasePost.createdAt
+                                ),
+                                nickname = "User", // Default nickname for now
+                                profileImage = null,
+                                likeCount = 0, // Default values - will be fetched separately later
+                                commentCount = 0,
+                                isLiked = false,
+                                isBookmarked = false
+                            )
+                        }.sortedByDescending { it.post.postId } // Sort by postId descending (newest first)
+                        
+                        // UI 업데이트는 메인 스레드에서 수행
+                        withContext(Dispatchers.Main) {
+                            boardAdapter.setPosts(postWithExtrasList)
+                            fullPostList.clear()
+                            fullPostList.addAll(postWithExtrasList) // 필터링용 원본 유지
 
-                binding.rvBoard.visibility = if (emptyPostList.isEmpty()) View.GONE else View.VISIBLE
-                binding.tvNoBoard.visibility = if (emptyPostList.isEmpty()) View.VISIBLE else View.GONE
+                            binding.rvBoard.visibility = if (postWithExtrasList.isEmpty()) View.GONE else View.VISIBLE
+                            binding.tvNoBoard.visibility = if (postWithExtrasList.isEmpty()) View.VISIBLE else View.GONE
+                        }
+                    },
+                    onFailure = { exception ->
+                        exception.printStackTrace()
+                        withContext(Dispatchers.Main) {
+                            // Show empty state on error
+                            boardAdapter.setPosts(emptyList())
+                            fullPostList.clear()
+                            binding.rvBoard.visibility = View.GONE
+                            binding.tvNoBoard.visibility = View.VISIBLE
+                        }
+                    }
+                )
 
             } catch (e: Exception) {
                 e.printStackTrace()

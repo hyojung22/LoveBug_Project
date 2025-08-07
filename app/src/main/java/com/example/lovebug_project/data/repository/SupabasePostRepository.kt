@@ -21,9 +21,10 @@ class SupabasePostRepository {
                     .select {
                         limit(limitCount.toLong())
                         range(offset.toLong(), (offset + limitCount - 1).toLong())
-                        // Note: Ordering may need to be handled differently in current API
+                        // Note: Ordering is handled client-side in the repository layer
                     }
                     .decodeList<Post>()
+                    .sortedByDescending { it.postId } // Sort by postId descending (newest first)
                 
                 ErrorReporter.trackPerformance(
                     operationName = "getAllPosts",
@@ -80,6 +81,7 @@ class SupabasePostRepository {
                     }
                 }
                 .decodeList<Post>()
+                .sortedByDescending { it.postId } // Sort by postId descending (newest first)
             Result.success(posts)
         } catch (e: Exception) {
             Result.failure(e)

@@ -71,17 +71,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Intent 처리 - 게시글 작성 후 돌아왔는지 확인
-        if (intent.getBooleanExtra("navigateToBoard", false)) {
-            // 게시판 탭으로 이동
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.frame, BoardMainFragment()).commit()
-            // 하단 네비게이션도 게시판으로 설정
-            binding.nav.selectedItemId = R.id.btnBoard
-        } else {
-            // 초기화 화면으로 쓸 수 있는 fragment를 지정!
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.frame, HomeFragment()).commit()
-        }
+        handleNavigationIntent(intent)
 
         // 각각의 버튼을 클릭했을 때 해당하는 fragment가 띄워지도록 연결
         binding.nav.setOnItemSelectedListener {
@@ -105,6 +95,26 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             true
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle the new intent when activity is already running
+        handleNavigationIntent(intent)
+    }
+    
+    private fun handleNavigationIntent(intent: Intent) {
+        if (intent.getBooleanExtra("navigateToBoard", false)) {
+            // 게시판 탭으로 이동
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, BoardMainFragment()).commit()
+            // 하단 네비게이션도 게시판으로 설정
+            binding.nav.selectedItemId = R.id.btnBoard
+        } else if (!isFinishing) {
+            // 초기화 화면으로 쓸 수 있는 fragment를 지정!
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.frame, HomeFragment()).commit()
         }
     }
 
