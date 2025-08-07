@@ -6,7 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.lovebug_project.R
-import com.example.lovebug_project.data.db.entity.Expense
+import com.example.lovebug_project.data.supabase.models.Expense
 import com.example.lovebug_project.databinding.ItemExpenseBinding
 import kotlin.random.Random
 

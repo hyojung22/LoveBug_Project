@@ -98,11 +98,13 @@ class BoardAdapter(
         // 초기 로딩 상태 설정 (기본값)
         updateLikeUI(holder, false, postExtra.likeCount)
         
+        // TODO: Implement Like functionality with Supabase
+        // Temporarily using default values until Like Repository is implemented
         backgroundExecutor.execute {
             try {
-                val likeDao = MyApplication.database.likeDao()
-                val currentIsLiked = likeDao.isPostLikedByUser(currentUserId, post.postId)
-                val currentLikeCount = likeDao.getLikeCountByPost(post.postId)
+                // Placeholder - use post data for like count
+                val currentIsLiked = false // Default: not liked
+                val currentLikeCount = postExtra.likeCount // Use existing like count from post data
                 
                 mainHandler.post {
                     isLiked = currentIsLiked
@@ -124,18 +126,10 @@ class BoardAdapter(
             
             backgroundExecutor.execute {
                 try {
-                    val likeDao = MyApplication.database.likeDao()
-                    val newIsLiked: Boolean
-                    
-                    if (isLiked) {
-                        likeDao.deleteLike(currentUserId, post.postId)
-                        newIsLiked = false
-                    } else {
-                        likeDao.insert(Like(postId = post.postId, userId = currentUserId))
-                        newIsLiked = true
-                    }
-                    
-                    val newCount = likeDao.getLikeCountByPost(post.postId)
+                    // TODO: Implement Like toggle with Supabase
+                    // Temporarily toggle local state until Like Repository is implemented
+                    val newIsLiked: Boolean = !isLiked
+                    val newCount = if (newIsLiked) likeCount + 1 else maxOf(0, likeCount - 1)
                     
                     mainHandler.post {
                         isLiked = newIsLiked

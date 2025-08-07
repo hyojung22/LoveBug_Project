@@ -54,8 +54,8 @@ class BoardDetailFragment : Fragment() {
         // 🗑️ 삭제 버튼 클릭 핸들러
         requireActivity().findViewById<TextView>(R.id.btnDelete)
             .setOnClickListener {
-                // 1) DB에서 삭제
-                MyApplication.database.postDao().deleteById(postExtra.post.postId)
+                // TODO: Implement Supabase post deletion
+                // MyApplication.postRepository.deletePost(postExtra.post.postId)
                 // 2) 메인에 삭제 알림
                 parentFragmentManager.setFragmentResult(
                     "postDeleted",
@@ -91,8 +91,8 @@ class BoardDetailFragment : Fragment() {
         binding.rvComment.adapter = commentAdapter
 
         // 🔹 최신 댓글 개수로 초기화
-        val initialCount = MyApplication.database.commentDao()
-            .getCommentCountByPost(postExtra.post.postId)
+        // TODO: Implement Supabase comment count
+        val initialCount = 0 // MyApplication.postRepository.getCommentCount(postExtra.post.postId)
         binding.tvComment.text = initialCount.toString()
 
         loadComments(postExtra.post.postId)
@@ -104,7 +104,9 @@ class BoardDetailFragment : Fragment() {
             val content = binding.etCommentContent.text.toString().trim()
             if (content.isNotEmpty()) {
                 val now = System.currentTimeMillis().toString() // 날짜 포맷은 필요 시 변경
-                MyApplication.database.commentDao().insert(
+                // TODO: Implement Supabase comment insertion
+                /*
+                MyApplication.postRepository.insertComment(
                     Comment(
                         postId = postExtra.post.postId,
                         userId = currentUserId,
@@ -112,6 +114,7 @@ class BoardDetailFragment : Fragment() {
                         createdAt = now
                     )
                 )
+                */
                 binding.etCommentContent.text.clear()
 
                 // 🔹 여기서만 호출하면 자동으로 리스트 + 카운트 갱신
@@ -124,7 +127,8 @@ class BoardDetailFragment : Fragment() {
             }
         }
 
-        val likeDao = MyApplication.database.likeDao()
+        // TODO: Implement Supabase like functionality
+        // val likeRepository = MyApplication.postRepository
 
         binding.tvNick.text = postExtra.nickname
 
@@ -136,11 +140,12 @@ class BoardDetailFragment : Fragment() {
         binding.tvComment.text = postExtra.commentCount.toString()
         binding.etContent.setText(postExtra.post.content)
         
-        // 현재 좋아요 상태 불러오기 (코루틴으로 개선)
+        // TODO: Implement Supabase like functionality
+        /*
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                isLiked = likeDao.isPostLikedByUser(currentUserId, postExtra.post.postId)
-                likeCount = likeDao.getLikeCountByPost(postExtra.post.postId)
+                isLiked = MyApplication.postRepository.isPostLikedByUser(currentUserId, postExtra.post.postId)
+                likeCount = MyApplication.postRepository.getLikeCountByPost(postExtra.post.postId)
                 
                 withContext(Dispatchers.Main) {
                     binding.tvLike.text = likeCount.toString()
@@ -154,6 +159,11 @@ class BoardDetailFragment : Fragment() {
                 }
             }
         }
+        */
+        
+        // Temporary placeholder
+        binding.tvLike.text = "0"
+        binding.imgLike.setImageResource(R.drawable.like_off)
 
         // 게시물 이미지
         if (!postExtra.post.image.isNullOrEmpty()) {
@@ -165,8 +175,10 @@ class BoardDetailFragment : Fragment() {
             binding.imgBoard.setImageResource(R.drawable.ic_launcher_background)
         }
 
-        // 좋아요 버튼 클릭 이벤트 (코루틴 기반으로 개선)
+        // TODO: Implement Supabase like functionality
         binding.imgLike.setOnClickListener {
+            // TODO: Implement like/unlike with Supabase
+            /*
             // 중복 클릭 방지
             binding.imgLike.isEnabled = false
             
@@ -174,15 +186,15 @@ class BoardDetailFragment : Fragment() {
                 try {
                     val newIsLiked: Boolean
                     if (isLiked) {
-                        likeDao.deleteLike(currentUserId, postExtra.post.postId)
+                        MyApplication.postRepository.deleteLike(currentUserId, postExtra.post.postId)
                         newIsLiked = false
                     } else {
-                        likeDao.insert(Like(postId = postExtra.post.postId, userId = currentUserId))
+                        MyApplication.postRepository.insertLike(postExtra.post.postId, currentUserId)
                         newIsLiked = true
                     }
                     
                     // 최신 좋아요 수 가져오기
-                    val newLikeCount = likeDao.getLikeCountByPost(postExtra.post.postId)
+                    val newLikeCount = MyApplication.postRepository.getLikeCountByPost(postExtra.post.postId)
                     
                     // UI 스레드에서 UI 업데이트
                     withContext(Dispatchers.Main) {
@@ -215,6 +227,7 @@ class BoardDetailFragment : Fragment() {
                     }
                 }
             }
+            */
         }
 
         // 상단 프로필 이미지
@@ -244,29 +257,36 @@ class BoardDetailFragment : Fragment() {
     }
 
     private fun loadComments(postId: Int) {
-        val comments = MyApplication.database.commentDao().getCommentsByPost(postId)
+        // TODO: Implement Supabase comment loading
+        /*
+        val comments = MyApplication.postRepository.getCommentsByPost(postId)
         commentAdapter.setComments(comments)
 
         // 🔹 여기서 최신 개수 갱신
-        val count = MyApplication.database.commentDao().getCommentCountByPost(postId)
+        val count = MyApplication.postRepository.getCommentCountByPost(postId)
         binding.tvComment.text = count.toString()
         sendCommentUpdate(count) // 메인 프래그먼트에 반영
+        */
+        
+        // Temporary placeholder
+        val comments = emptyList<Comment>()
+        commentAdapter.setComments(comments)
+        binding.tvComment.text = "0"
+        sendCommentUpdate(0)
     }
 
     private fun deleteComment(comment: Comment) {
-        MyApplication.database.commentDao().delete(comment)
+        // TODO: Implement Supabase comment deletion
+        // MyApplication.postRepository.deleteComment(comment)
 
         // 댓글 목록 다시 로드
         loadComments(comment.postId)
-//
-//        // 댓글 개수 반영
-//        val count = MyApplication.database.commentDao().getCommentCountByPost(comment.postId)
-//        binding.tvComment.text = count.toString()
     }
 
     private fun updateComment(comment: Comment, newContent: String) {
         val updatedAt = System.currentTimeMillis().toString()
-        MyApplication.database.commentDao().updateCommentContent(comment.commentId, newContent, updatedAt)
+        // TODO: Implement Supabase comment update
+        // MyApplication.postRepository.updateComment(comment.commentId, newContent, updatedAt)
         loadComments(comment.postId)
     }
 

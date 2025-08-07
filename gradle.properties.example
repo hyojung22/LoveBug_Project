@@ -1,0 +1,25 @@
+# Example Gradle Properties File
+# Copy this file to gradle.properties and add your actual Supabase credentials
+# NEVER commit gradle.properties with real credentials to version control!
+
+# Supabase Configuration
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key-here
+
+# For local development, you can set these values here
+# For CI/CD, use environment variables instead
+
+# Example:
+# SUPABASE_URL=https://dvfidxoksmswsyjjcczy.supabase.co
+# SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Android Gradle Plugin Settings
+android.useAndroidX=true
+android.enableJetifier=true
+kotlin.code.style=official
+
+# Gradle Daemon Settings
+org.gradle.daemon=true
+org.gradle.parallel=true
+org.gradle.configureondemand=true
+org.gradle.caching=true

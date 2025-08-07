@@ -14,9 +14,11 @@ import com.bumptech.glide.Glide
 import com.example.lovebug_project.MainActivity
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
-import com.example.lovebug_project.data.db.entity.Post
-import com.example.lovebug_project.data.db.entity.PostWithExtras
+import com.example.lovebug_project.data.supabase.models.Post
 import com.example.lovebug_project.databinding.ActivityBoardWriteBinding
+import com.example.lovebug_project.utils.AuthHelper
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,50 +64,60 @@ class BoardWriteActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // 현재 로그인 유저 ID 검증
-            val currentUserId = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-                .getInt("userId", -1)
+            // 현재 로그인 유저 ID 검증 (Supabase UUID)
+            val currentSupabaseUserId = AuthHelper.getSupabaseUserId(this)
             
-            if (currentUserId == -1) {
+            if (currentSupabaseUserId == null) {
                 Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            try {
-                // 작성 시간 (형식 : yyyy-MM-dd HH:mm)
-                val now = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+            // 비동기 작업으로 게시글 생성
+            lifecycleScope.launch {
+                try {
+                    // 작성 시간 (ISO 형식)
+                    val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date())
 
-                // Post 객체 생성
-                val newPost = Post(
-                    userId = currentUserId,
-                    title = title,
-                    content = content,
-                    image = selectedImageUri?.toString(), // 이미지 URI 저장
-                    createdAt = now
-                )
+                    // 이미지 업로드 (있는 경우)
+                    val uploadedImageUrl = if (selectedImageUri != null) {
+                        uploadImageToSupabase(selectedImageUri!!, currentSupabaseUserId)
+                    } else null
 
-                val postDao = MyApplication.database.postDao()
-                // Insert하고 반환된 ID를 받음
-                val newId = postDao.insert(newPost).toInt()
-                
-                // 성공 메시지
-                Toast.makeText(this, "게시글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
-                
-                // MainActivity로 돌아가면서 게시판 탭으로 이동
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    putExtra("navigateToBoard", true)
-                    putExtra("newPostId", newId)
-                    // FLAG_CLEAR_TOP을 사용해 기존 MainActivity 인스턴스를 재사용
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    // Post 객체 생성
+                    val newPost = Post(
+                        userId = currentSupabaseUserId, // Supabase Auth UUID
+                        title = title,
+                        content = content,
+                        image = uploadedImageUrl, // Supabase Storage URL 저장
+                        createdAt = now
+                    )
+
+                    // Enhanced Supabase repository를 통해 게시글 생성 (캐시 포함)
+                    val repositoryManager = MyApplication.repositoryManager
+                    val result = repositoryManager.cachedPostRepository.createPost(newPost)
+                    
+                    result.fold(
+                        onSuccess = { createdPost ->
+                            // 성공 메시지
+                            Toast.makeText(this@BoardWriteActivity, "게시글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
+                            
+                            // MainActivity로 돌아가면서 게시판 탭으로 이동
+                            val intent = Intent(this@BoardWriteActivity, MainActivity::class.java).apply {
+                                putExtra("navigateToBoard", true)
+                                putExtra("newPostId", createdPost.postId)
+                                // FLAG_CLEAR_TOP을 사용해 기존 MainActivity 인스턴스를 재사용
+                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            }
+                            startActivity(intent)
+                            finish()
+                        },
+                        onFailure = { exception ->
+                            Toast.makeText(this@BoardWriteActivity, "게시글 등록 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                } catch (e: Exception) {
+                    Toast.makeText(this@BoardWriteActivity, "게시글 등록 실패: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-                startActivity(intent)
-                finish()
-                
-            } catch (e: Exception) {
-                // 데이터베이스 오류 처리
-                Toast.makeText(this, "게시글 등록 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
-                // 로그 출력 (개발용)
-                e.printStackTrace()
             }
         }
     }
@@ -119,6 +131,34 @@ class BoardWriteActivity : AppCompatActivity() {
             Glide.with(this)
                 .load(selectedImageUri)
                 .into(binding.img) // 선택한 이미지 미리보기
+        }
+    }
+
+    /**
+     * Supabase Storage에 이미지 업로드
+     */
+    private suspend fun uploadImageToSupabase(imageUri: Uri, userId: String): String? {
+        return try {
+            val repositoryManager = MyApplication.repositoryManager
+            val result = repositoryManager.imageRepository.uploadPostImage(
+                context = this,
+                imageUri = imageUri,
+                userId = userId
+            )
+            
+            result.fold(
+                onSuccess = { imageUrl ->
+                    Toast.makeText(this, "이미지 업로드 완료", Toast.LENGTH_SHORT).show()
+                    imageUrl
+                },
+                onFailure = { exception ->
+                    Toast.makeText(this, "이미지 업로드 실패: ${exception.message}", Toast.LENGTH_LONG).show()
+                    null
+                }
+            )
+        } catch (e: Exception) {
+            Toast.makeText(this, "이미지 업로드 중 오류 발생: ${e.message}", Toast.LENGTH_LONG).show()
+            null
         }
     }
 

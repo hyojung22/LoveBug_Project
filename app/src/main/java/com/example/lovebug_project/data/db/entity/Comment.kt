@@ -1,25 +1,14 @@
 package com.example.lovebug_project.data.db.entity
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.PrimaryKey
-
 /**
- * 게시글 댓글 테이블
- * - 댓글 내용, 작성 시간, 수정 시간 기록
+ * Simple data class placeholder for Comment (Room version backed up as .kt.bak)
+ * TODO: Replace with Supabase data models
  */
-@Entity(
-    tableName = "comments",
-    foreignKeys = [
-        ForeignKey(entity = Post::class, parentColumns = ["postId"], childColumns = ["postId"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(entity = User::class, parentColumns = ["userId"], childColumns = ["userId"], onDelete = ForeignKey.CASCADE)
-    ]
-)
-data class Comment (
-    @PrimaryKey(autoGenerate = true) val commentId: Int = 0,
+data class Comment(
+    val commentId: Int = 0,
     val postId: Int,
     val userId: Int,
-    var content: String,
+    val content: String,
     val createdAt: String,
-    val updateAt: String? = null
+    val updatedAt: String? = null
 )

@@ -52,25 +52,19 @@ class CommentAdapter(
         position: Int
     ) {
         val comment = commentList[position]
-        val userDao = MyApplication.database.userDao()
-        val user = userDao.getUserById(comment.userId)
+        // TODO: Implement Supabase user lookup
+        // val user = MyApplication.authRepository.getUserById(comment.userId)
 
-        // 닉네임
-        holder.tvNick.text = user?.nickname ?: "알 수 없음"
+        // 닉네임 - temporary placeholder
+        holder.tvNick.text = "사용자"
 
-        // 프로필 이미지
-        if (!user?.profileImage.isNullOrEmpty()) {
-            Glide.with(holder.itemView.context)
-                .load(user?.profileImage)
-                .into(holder.imgProfile)
-        } else {
-            holder.imgProfile.setImageResource(R.drawable.circle_button) // 기본 이미지
-        }
+        // 프로필 이미지 - temporary placeholder
+        holder.imgProfile.setImageResource(R.drawable.circle_button)
 
         // 댓글 내용, 시간
         holder.tvCommentContent.text = comment.content
         holder.tvCommentContent.isEnabled = false // 기본은 읽기 모드
-        holder.tvTime.text = comment.updateAt ?: comment.createdAt
+        holder.tvTime.text = comment.updatedAt ?: comment.createdAt
 
         // 자기 댓글만 수정/삭제 버튼 보이기
         if (comment.userId == currentUserId) {
@@ -101,7 +95,8 @@ class CommentAdapter(
             val newContent = holder.tvCommentContent.text.toString().trim()
             if (newContent.isNotEmpty() && newContent != comment.content) {
                 onUpdateClick(comment, newContent) // DB 반영
-                comment.content = newContent
+                // Note: comment.content is val, so we can't reassign it
+                // The content will be updated when the adapter refreshes with new data
                 holder.tvTime.text = "${System.currentTimeMillis()} (수정됨)" // 필요 시 포맷 변경
             }
 

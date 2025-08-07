@@ -8,9 +8,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.activity.OnBackPressedCallback
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.lovebug_project.data.db.AppDatabase
-import com.example.lovebug_project.data.db.MyApplication
-import com.example.lovebug_project.data.db.entity.Expense
+import com.example.lovebug_project.data.repository.SupabaseExpenseRepository
+import com.example.lovebug_project.data.supabase.models.Expense
+import com.example.lovebug_project.utils.AuthHelper
 import com.example.lovebug_project.databinding.ActivityExpenseDetailBinding
 import com.example.lovebug_project.expense.adapter.ExpenseListAdapter
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -26,19 +26,17 @@ class ExpenseDetailActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityExpenseDetailBinding
     private lateinit var expenseAdapter: ExpenseListAdapter
-    private lateinit var database: AppDatabase
+    private val expenseRepository = SupabaseExpenseRepository()
     
     private var selectedDate: LocalDate? = null
     private val expenses = mutableListOf<Expense>()
     
     companion object {
         private const val EXTRA_DATE = "extra_date"
-        private const val EXTRA_USER_ID = "extra_user_id"
         
-        fun newIntent(context: Context, date: LocalDate, userId: Int): Intent {
+        fun newIntent(context: Context, date: LocalDate): Intent {
             return Intent(context, ExpenseDetailActivity::class.java).apply {
                 putExtra(EXTRA_DATE, date.toString())
-                putExtra(EXTRA_USER_ID, userId)
             }
         }
     }
@@ -54,14 +52,17 @@ class ExpenseDetailActivity : AppCompatActivity() {
             insets
         }
         
-        // MyApplication을 사용하여 데이터베이스 초기화
-        database = MyApplication.database
-        
         // Intent extras 가져오기
         val dateString = intent.getStringExtra(EXTRA_DATE)
-        val userId = intent.getIntExtra(EXTRA_USER_ID, -1)
         
-        if (dateString == null || userId == -1) {
+        if (dateString == null) {
+            finish()
+            return
+        }
+        
+        // 사용자 로그인 상태 확인
+        if (!AuthHelper.isLoggedIn(this)) {
+            Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -72,7 +73,7 @@ class ExpenseDetailActivity : AppCompatActivity() {
         setupRecyclerView()
         setupFab()
         setupBackPressHandler()
-        loadExpenses(userId)
+        loadExpenses()
     }
     
     private fun setupToolbar() {
@@ -94,9 +95,8 @@ class ExpenseDetailActivity : AppCompatActivity() {
             expenses = expenses,
             onItemClick = { expense -> 
                 // 편집을 위해 ExpenseRegisterActivity로 이동
-                val userId = intent.getIntExtra(EXTRA_USER_ID, -1)
                 selectedDate?.let { date ->
-                    val intent = ExpenseRegisterActivity.newIntent(this, date, userId, expense.expenseId)
+                    val intent = ExpenseRegisterActivity.newIntent(this, date, expense.expenseId)
                     startActivity(intent)
                 }
             },
@@ -113,7 +113,7 @@ class ExpenseDetailActivity : AppCompatActivity() {
     
     private fun setupFab() {
         binding.fabAddExpense.setOnClickListener {
-            val userId = intent.getIntExtra(EXTRA_USER_ID, -1)
+            val userId = AuthHelper.getCurrentUserId(this)
             selectedDate?.let { date ->
                 val intent = ExpenseRegisterActivity.newIntent(this, date, userId)
                 startActivity(intent)
@@ -129,24 +129,34 @@ class ExpenseDetailActivity : AppCompatActivity() {
         })
     }
     
-    private fun loadExpenses(userId: Int) {
+    private fun loadExpenses() {
         selectedDate?.let { date ->
             lifecycleScope.launch {
-                try {
-                    val expenseList = database.expenseDao().getExpensesByDate(
-                        userId = userId,
-                        date = date.toString()
-                    )
-                    expenses.clear()
-                    expenses.addAll(expenseList)
-                    expenseAdapter.notifyDataSetChanged()
-                } catch (e: Exception) {
+                val supabaseUserId = AuthHelper.getSupabaseUserId(this@ExpenseDetailActivity)
+                if (supabaseUserId == null) {
                     Toast.makeText(
                         this@ExpenseDetailActivity,
-                        "지출 내역을 불러오는데 실패했습니다.",
+                        "로그인이 필요합니다.",
                         Toast.LENGTH_SHORT
                     ).show()
+                    return@launch
                 }
+                
+                expenseRepository.getExpensesByDate(supabaseUserId, date.toString())
+                    .fold(
+                        onSuccess = { expenseList ->
+                            expenses.clear()
+                            expenses.addAll(expenseList)
+                            expenseAdapter.notifyDataSetChanged()
+                        },
+                        onFailure = { exception ->
+                            Toast.makeText(
+                                this@ExpenseDetailActivity,
+                                "지출 내역을 불러오는데 실패했습니다: ${exception.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
             }
         }
     }
@@ -161,21 +171,24 @@ class ExpenseDetailActivity : AppCompatActivity() {
             }
             .setPositiveButton("삭제") { dialog, _ ->
                 lifecycleScope.launch {
-                    try {
-                        database.expenseDao().delete(expense)
-                        loadExpenses(intent.getIntExtra(EXTRA_USER_ID, -1)) // 리스트 새로고침
-                        Toast.makeText(
-                            this@ExpenseDetailActivity,
-                            "지출이 삭제되었습니다.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@ExpenseDetailActivity,
-                            "지출 삭제에 실패했습니다.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    expenseRepository.deleteExpense(expense.expenseId)
+                        .fold(
+                            onSuccess = {
+                                loadExpenses() // 리스트 새로고침
+                                Toast.makeText(
+                                    this@ExpenseDetailActivity,
+                                    "지출이 삭제되었습니다.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onFailure = { exception ->
+                                Toast.makeText(
+                                    this@ExpenseDetailActivity,
+                                    "지출 삭제에 실패했습니다: ${exception.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
                 }
                 dialog.dismiss()
             }
@@ -185,9 +198,8 @@ class ExpenseDetailActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // ExpenseRegisterActivity에서 돌아왔을 때 리스트 새로고침
-        val userId = intent.getIntExtra(EXTRA_USER_ID, -1)
-        if (userId != -1) {
-            loadExpenses(userId)
+        if (AuthHelper.isLoggedIn(this)) {
+            loadExpenses()
         }
     }
     

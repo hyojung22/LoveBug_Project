@@ -14,6 +14,9 @@ import com.example.lovebug_project.databinding.ActivityMainBinding
 import com.example.lovebug_project.databinding.FragmentHomeBinding
 import com.example.lovebug_project.home.HomeFragment
 import com.example.lovebug_project.mypage.MypageFragment
+import com.example.lovebug_project.utils.AuthHelper
+import com.example.lovebug_project.auth.LoginActivity
+import android.content.Intent
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,6 +24,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 로그인 상태 확인
+        if (!AuthHelper.isLoggedIn(this)) {
+            // 로그인되어 있지 않으면 LoginActivity로 이동
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
+            return
+        }
+        
 //        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

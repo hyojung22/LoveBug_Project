@@ -43,8 +43,10 @@
         android:layout_marginStart="20dp"
         android:layout_marginTop="160dp"
         android:layout_marginEnd="20dp"
+        android:autofillHints="email"
         android:ems="10"
-        android:hint="아이디"
+        android:hint="이메일"
+        android:inputType="textEmailAddress"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

@@ -9,7 +9,13 @@
       "Bash(rm:*)",
       "Bash(.gradlew build)",
       "Bash(gradlew:*)",
-      "Bash(.\\gradlew.bat build:*)"
+      "Bash(.\\gradlew.bat build:*)",
+      "Bash(timeout:*)",
+      "Bash(mv:*)",
+      "Bash(for file in *.kt)",
+      "Bash(do mv \"$file\" \"$file.bak\")",
+      "Bash(done)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

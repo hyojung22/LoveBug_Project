@@ -168,10 +168,9 @@ class BoardMainFragment : Fragment() {
                         fullPostList.sortByDescending { it.post.postId } // 최신이 위로 오도록
                     }
                     1 -> {
-                        // 좋아요순
-                        fullPostList.sortByDescending {
-                            MyApplication.database.likeDao().getLikeCountByPost(it.post.postId)
-                        }
+                        // 좋아요순 - TODO: Implement with Supabase
+                        // Temporarily sort by likeCount from existing data
+                        fullPostList.sortByDescending { it.likeCount }
                     }
                 }
 
@@ -207,46 +206,17 @@ class BoardMainFragment : Fragment() {
     private fun loadPostFromDB() {
         lifecycleScope.launch {
             try {
-                val postDao = MyApplication.database.postDao()
-                val userDao = MyApplication.database.userDao()
-                val likeDao = MyApplication.database.likeDao()
-                val commentDao = MyApplication.database.commentDao()
-                val bookmarkDao = MyApplication.database.bookmarkDao()
-
-                // IO 스레드에서 데이터베이스 작업 수행
-                val postWithExtrasList = withContext(Dispatchers.IO) {
-                    val posts = postDao.getAllPosts()
-                    val currentUserId = getLoggedInUserId() // 예시로 현재 로그인된 유저 ID
-
-                    posts.map { post ->
-                        val nickname = userDao.getUserById(post.userId)?.nickname ?: "알 수 없음"
-                        val likeCount = likeDao.getLikeCountByPost(post.postId)
-                        val commentCount = commentDao.getCommentCountByPost(post.postId)
-                        // 내가 쓴 글이 아니라면 북마크 여부 확인
-                        val isBookmarked = if (post.userId != currentUserId) {
-                            bookmarkDao.isPostBookmarkedByUser(currentUserId, post.postId)
-                        } else {
-                            false
-                        }
-
-                        PostWithExtras(
-                            post = post,
-                            nickname = nickname,
-                            profileImage = null,
-                            likeCount = likeCount,
-                            commentCount = commentCount,
-                            isBookmarked = isBookmarked
-                        )
-                    }
-                }
-
+                // TODO: Replace with complete Supabase implementation
+                // Temporarily using empty list until full migration is complete
+                val emptyPostList = listOf<com.example.lovebug_project.data.db.entity.PostWithExtras>()
+                
                 // UI 업데이트는 메인 스레드에서 수행
-                boardAdapter.setPosts(postWithExtrasList)
+                boardAdapter.setPosts(emptyPostList)
                 fullPostList.clear()
-                fullPostList.addAll(postWithExtrasList) // 필터링용 원본 유지
+                fullPostList.addAll(emptyPostList) // 필터링용 원본 유지
 
-                binding.rvBoard.visibility = if (postWithExtrasList.isEmpty()) View.GONE else View.VISIBLE
-                binding.tvNoBoard.visibility = if (postWithExtrasList.isEmpty()) View.VISIBLE else View.GONE
+                binding.rvBoard.visibility = if (emptyPostList.isEmpty()) View.GONE else View.VISIBLE
+                binding.tvNoBoard.visibility = if (emptyPostList.isEmpty()) View.VISIBLE else View.GONE
 
             } catch (e: Exception) {
                 e.printStackTrace()

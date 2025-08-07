@@ -16,9 +16,8 @@ import android.view.Gravity
 import com.example.lovebug_project.R
 import com.example.lovebug_project.databinding.FragmentHomeBinding
 import com.example.lovebug_project.expense.ExpenseDetailActivity
-import com.example.lovebug_project.data.db.AppDatabase
-import com.example.lovebug_project.data.db.MyApplication
-import com.example.lovebug_project.data.db.entity.Expense
+import com.example.lovebug_project.data.supabase.models.Expense
+import com.example.lovebug_project.data.repository.SupabaseRepositoryManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -42,14 +41,14 @@ class HomeFragment : Fragment() {
     private var selectedDate: LocalDate? = null
     private var currentMonth = YearMonth.now()
     
-    // 데이터베이스 인스턴스
-    private lateinit var database: AppDatabase
+    // Supabase Repository 인스턴스
+    private val expenseRepository = SupabaseRepositoryManager.expenseRepository
     
     // 데이터베이스에서 로드된 지출 데이터 - 날짜별 총 지출 금액 맵
     private val expenseData = mutableMapOf<LocalDate, Int>()
     
     private var monthlyBudget = 100000 // 목표 금액
-    private val currentUserId = 1 // 샘플 유저 ID - 실제 앱에서는 유저 세션에서 가져와야 함
+    private val currentUserId = "sample-user-id" // 샘플 유저 ID - 실제 앱에서는 Supabase Auth에서 가져와야 함
     
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -62,8 +61,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // 데이터베이스 초기화
-        database = MyApplication.database
+        // Repository 초기화 (이미 companion object로 초기화됨)
         
         setupCalendar()
         setupClickListeners()
@@ -218,13 +216,22 @@ class HomeFragment : Fragment() {
     private fun loadExpenseDataForCurrentMonth() {
         lifecycleScope.launch {
             try {
-                // 데이터베이스 쿼리를 위한 "YYYY-MM" 형식의 월 문자열 가져오기
-                val monthString = currentMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                // Supabase 쿼리를 위한 날짜 범위 계산
+                val startDate = currentMonth.atDay(1).toString() // "2025-08-01"
+                val endDate = currentMonth.atEndOfMonth().toString() // "2025-08-31"
                 
-                // 데이터베이스에서 현재 월의 지출 내역 로드 (IO 스레드에서 실행)
-                val expenses = withContext(Dispatchers.IO) {
-                    database.expenseDao().getExpenseByMonth(currentUserId, monthString)
+                // Supabase에서 현재 월의 지출 내역 로드 (IO 스레드에서 실행)
+                val expensesResult = withContext(Dispatchers.IO) {
+                    expenseRepository.getExpensesByDateRange(currentUserId, startDate, endDate)
                 }
+                
+                if (expensesResult.isFailure) {
+                    // 에러 처리
+                    expensesResult.exceptionOrNull()?.printStackTrace()
+                    return@launch
+                }
+                
+                val expenses = expensesResult.getOrNull() ?: emptyList()
                 
                 // 현재 데이터를 초기화하고 일별 총계 계산
                 expenseData.clear()
@@ -271,8 +278,7 @@ class HomeFragment : Fragment() {
                     // ExpenseDetailActivity로 이동
                     val intent = ExpenseDetailActivity.newIntent(
                         requireContext(), 
-                        day.date, 
-                        currentUserId
+                        day.date
                     )
                     startActivity(intent)
                 }
@@ -296,8 +302,7 @@ class HomeFragment : Fragment() {
                 // ExpenseDetailActivity로 이동
                 val intent = ExpenseDetailActivity.newIntent(
                     requireContext(), 
-                    day.date, 
-                    currentUserId
+                    day.date
                 )
                 startActivity(intent)
             }
@@ -320,8 +325,7 @@ class HomeFragment : Fragment() {
                 // ExpenseDetailActivity로 이동
                 val intent = ExpenseDetailActivity.newIntent(
                     requireContext(), 
-                    day.date, 
-                    currentUserId
+                    day.date
                 )
                 startActivity(intent)
             }

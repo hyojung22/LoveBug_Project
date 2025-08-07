@@ -17,10 +17,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.lovebug_project.R
-import com.example.lovebug_project.data.db.AppDatabase
-import com.example.lovebug_project.data.db.MyApplication
-import com.example.lovebug_project.data.db.entity.Expense
-import com.example.lovebug_project.data.db.entity.User
+import com.example.lovebug_project.data.repository.SupabaseAuthRepository
+import com.example.lovebug_project.data.repository.SupabaseExpenseRepository
+import com.example.lovebug_project.data.supabase.models.Expense
 import com.example.lovebug_project.databinding.ActivityExpenseRegisterBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
@@ -32,7 +31,8 @@ import java.util.Locale
 class ExpenseRegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityExpenseRegisterBinding
-    private lateinit var database: AppDatabase
+    private val authRepository = SupabaseAuthRepository()
+    private val expenseRepository = SupabaseExpenseRepository()
 
     private var selectedDate: LocalDate? = null
     private var selectedCategory = "식비" // 기본 카테고리
@@ -46,18 +46,16 @@ class ExpenseRegisterActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_DATE = "extra_date"
-        private const val EXTRA_USER_ID = "extra_user_id"
+        private const val EXTRA_USER_ID = "extra_user_id" // Legacy - now using current user
         private const val EXTRA_EXPENSE_ID = "extra_expense_id" // 수정 모드용
 
         fun newIntent(
             context: Context,
             date: LocalDate,
-            userId: Int,
             expenseId: Int? = null
         ): Intent {
             return Intent(context, ExpenseRegisterActivity::class.java).apply {
                 putExtra(EXTRA_DATE, date.toString())
-                putExtra(EXTRA_USER_ID, userId)
                 expenseId?.let { putExtra(EXTRA_EXPENSE_ID, it) }
             }
         }
@@ -73,15 +71,20 @@ class ExpenseRegisterActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        // 데이터베이스 초기화
-        database = MyApplication.database
 
         // Intent extras 가져오기
         val dateString = intent.getStringExtra(EXTRA_DATE)
-        val userId = intent.getIntExtra(EXTRA_USER_ID, -1)
         val expenseId = intent.getIntExtra(EXTRA_EXPENSE_ID, -1)
 
-        if (dateString == null || userId == -1) {
+        if (dateString == null) {
+            finish()
+            return
+        }
+
+        // 현재 사용자 확인
+        val currentUser = authRepository.getCurrentUser()
+        if (currentUser == null) {
+            Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -94,14 +97,6 @@ class ExpenseRegisterActivity : AppCompatActivity() {
         setupClickListeners()
         setupBackPressHandler()
 
-        // 테스트: 즉시 포맷팅된 값 설정
-//        Log.d("ExpenseRegister", "Testing immediate formatting")
-//        binding.etAmount.setText("1234567")
-//        Log.d("ExpenseRegister", "Set text to 1234567, current text: '${binding.etAmount.text}'")
-
-        // 사용자 존재 확인 및 생성
-        ensureUserExists(userId)
-
         // 수정 모드인 경우 기존 데이터 로드
         if (expenseId != -1) {
             loadExpenseData(expenseId)
@@ -111,34 +106,6 @@ class ExpenseRegisterActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 사용자 존재 확인 및 임시 사용자 생성
-     * Foreign Key 제약조건 위반을 방지하기 위함
-     */
-    private fun ensureUserExists(userId: Int) {
-        lifecycleScope.launch {
-            try {
-                val existingUser = database.userDao().getUserById(userId)
-                if (existingUser == null) {
-                    // 임시 사용자 생성
-                    val tempUser = User(
-                        userId = userId,
-                        username = "temp_user_$userId",
-                        nickname = "사용자 $userId",
-                        userLoginId = "temp_$userId",
-                        password = "temp_password",
-                        profileImage = null,
-                        sharedSavingStats = false
-                    )
-                    database.userDao().insert(tempUser)
-                }
-            } catch (e: Exception) {
-                // 사용자 생성 실패 시 로그만 남기고 계속 진행
-                // 실제 앱에서는 적절한 에러 처리가 필요
-                e.printStackTrace()
-            }
-        }
-    }
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
@@ -335,40 +302,27 @@ class ExpenseRegisterActivity : AppCompatActivity() {
 
     private fun loadExpenseData(expenseId: Int) {
         lifecycleScope.launch {
-            try {
-                val expense = database.expenseDao().getExpenseById(expenseId)
-                expense?.let {
-                    // 원본 데이터 저장 (비교용)
-                    originalAmount = it.amount
-                    originalCategory = it.category
-                    originalMemo = it.memo
-
-                    // 금액 설정 (쉼표 포함 형태로)
-                    binding.etAmount.setText(formatAmountWithComma(it.amount.toLong()))
-
-                    // 카테고리 선택
-                    val categoryIndex = categories.indexOf(it.category)
-                    if (categoryIndex != -1) {
-                        selectCategory(categoryIndex)
-                    }
-
-                    // 메모 설정
-                    binding.etMemo.setText(it.memo)
-                }
-            } catch (e: Exception) {
-                Toast.makeText(
-                    this@ExpenseRegisterActivity,
-                    "데이터를 불러오는데 실패했습니다.",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            // Note: This would need a getExpenseById method in SupabaseExpenseRepository
+            // For now, we'll show an error message since the method doesn't exist yet
+            Toast.makeText(
+                this@ExpenseRegisterActivity,
+                "지출 수정 기능이 아직 구현되지 않았습니다.",
+                Toast.LENGTH_SHORT
+            ).show()
+            finish()
         }
     }
 
     private fun saveExpense() {
+        val currentUser = authRepository.getCurrentUser()
+        if (currentUser == null) {
+            Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
         val amountText = binding.etAmount.text.toString().replace(",", "").trim()
         val memo = binding.etMemo.text.toString().trim()
-        val userId = intent.getIntExtra(EXTRA_USER_ID, -1)
         val expenseId = intent.getIntExtra(EXTRA_EXPENSE_ID, -1)
 
         if (amountText.isEmpty()) {
@@ -389,7 +343,7 @@ class ExpenseRegisterActivity : AppCompatActivity() {
                     updateExpense(expenseId, selectedCategory, amount, memo)
                 } else {
                     // 새 등록 모드
-                    addNewExpense(userId, date, selectedCategory, amount, memo)
+                    addNewExpense(currentUser.id, date, selectedCategory, amount, memo)
                 }
             }
 
@@ -399,7 +353,7 @@ class ExpenseRegisterActivity : AppCompatActivity() {
     }
 
     private fun addNewExpense(
-        userId: Int,
+        userId: String,
         date: LocalDate,
         category: String,
         amount: Int,
@@ -410,53 +364,32 @@ class ExpenseRegisterActivity : AppCompatActivity() {
             date = date.toString(),
             category = category,
             amount = amount,
-            memo = memo
+            memo = memo ?: ""
         )
 
         lifecycleScope.launch {
-            try {
-                database.expenseDao().insert(expense)
-                Toast.makeText(this@ExpenseRegisterActivity, "지출이 등록되었습니다.", Toast.LENGTH_SHORT)
-                    .show()
-                finish()
-            } catch (e: Exception) {
-                Toast.makeText(this@ExpenseRegisterActivity, "지출 등록에 실패했습니다.", Toast.LENGTH_SHORT)
-                    .show()
-            }
+            expenseRepository.createExpense(expense)
+                .onSuccess {
+                    Toast.makeText(this@ExpenseRegisterActivity, "지출이 등록되었습니다.", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+                .onFailure { e ->
+                    Toast.makeText(this@ExpenseRegisterActivity, "지출 등록에 실패했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("ExpenseRegister", "Failed to create expense", e)
+                }
         }
     }
 
     private fun updateExpense(expenseId: Int, category: String, amount: Int, memo: String) {
         lifecycleScope.launch {
-            try {
-                val existingExpense = database.expenseDao().getExpenseById(expenseId)
-                existingExpense?.let { expense ->
-                    // 기존 데이터와 새 데이터 비교
-                    val hasChanges = expense.category != category ||
-                            expense.amount != amount ||
-                            expense.memo != memo
-
-                    if (hasChanges) {
-                        // 변경사항이 있는 경우에만 업데이트
-                        val updatedExpense = expense.copy(
-                            category = category,
-                            amount = amount,
-                            memo = memo
-                        )
-                        database.expenseDao().update(updatedExpense)
-                        Toast.makeText(
-                            this@ExpenseRegisterActivity,
-                            "지출이 수정되었습니다.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    // 변경사항이 있든 없든 액티비티 종료
-                    finish()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@ExpenseRegisterActivity, "지출 수정에 실패했습니다.", Toast.LENGTH_SHORT)
-                    .show()
-            }
+            // Note: This would need an updateExpense method with different parameters in SupabaseExpenseRepository
+            // For now, we'll show an error message since the current method signature doesn't match
+            Toast.makeText(
+                this@ExpenseRegisterActivity,
+                "지출 수정 기능이 아직 구현되지 않았습니다.",
+                Toast.LENGTH_SHORT
+            ).show()
+            finish()
         }
     }
 
@@ -483,18 +416,15 @@ class ExpenseRegisterActivity : AppCompatActivity() {
 
     private fun deleteExpense(expenseId: Int) {
         lifecycleScope.launch {
-            try {
-                val expense = database.expenseDao().getExpenseById(expenseId)
-                expense?.let {
-                    database.expenseDao().delete(it)
-                    Toast.makeText(this@ExpenseRegisterActivity, "지출이 삭제되었습니다.", Toast.LENGTH_SHORT)
-                        .show()
+            expenseRepository.deleteExpense(expenseId)
+                .onSuccess {
+                    Toast.makeText(this@ExpenseRegisterActivity, "지출이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
                     finish()
                 }
-            } catch (e: Exception) {
-                Toast.makeText(this@ExpenseRegisterActivity, "지출 삭제에 실패했습니다.", Toast.LENGTH_SHORT)
-                    .show()
-            }
+                .onFailure { e ->
+                    Toast.makeText(this@ExpenseRegisterActivity, "지출 삭제에 실패했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("ExpenseRegister", "Failed to delete expense", e)
+                }
         }
     }
 

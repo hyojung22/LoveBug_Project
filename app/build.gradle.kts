@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("org.jetbrains.kotlin.kapt") // ✅ 명시적으로 추가 (버전 없이!)
+    kotlin("plugin.serialization") version "1.9.20"
 }
 
 android {
@@ -19,12 +19,19 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "SUPABASE_URL", "\"https://dvfidxoksmswsyjjcczy.supabase.co\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2ZmlkeG9rc21zd3N5ampjY3p5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1MzAyOTEsImV4cCI6MjA3MDEwNjI5MX0.9VVwcUU9xiOk_qtYXibA6UZos4cs-WFh3dOvFexvgqw\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // For production, use environment variables or gradle.properties
+            buildConfigField("String", "SUPABASE_URL", "\"${findProperty("SUPABASE_URL") ?: ""}\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY", "\"${findProperty("SUPABASE_ANON_KEY") ?: ""}\"")
         }
     }
     compileOptions {
@@ -38,20 +45,36 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
 dependencies {
+    // Supabase
+    val supabaseVersion = "3.0.3"
+    val ktorVersion = "3.0.2"
+    implementation(platform("io.github.jan-tennert.supabase:bom:$supabaseVersion"))
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.ktor:ktor-client-android:$ktorVersion")
+    
+    // Required for Supabase Auth session management
+    implementation("com.russhwolf:multiplatform-settings:1.1.1")
+    
+    // Room Database removed - migrated to Supabase
+    
+    // Coroutines and Lifecycle
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    
     // Volley
     implementation("com.android.volley:volley:1.2.1")
 
     // Glide 이미지 생성 추가
     implementation("com.github.bumptech.glide:glide:4.11.0")
-
-    // ✅ Room 추가
-    implementation(libs.room.runtime)
-    kapt(libs.room.compiler)
-    implementation(libs.room.ktx)
 
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.fragment:fragment-ktx:1.8.1")
