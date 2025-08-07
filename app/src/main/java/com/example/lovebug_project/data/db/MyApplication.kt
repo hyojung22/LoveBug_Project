@@ -23,6 +23,7 @@ class MyApplication : Application() {
         // Legacy compatibility accessors - now lazy to prevent initialization issues
         val authRepository by lazy { SupabaseRepositoryManager.authRepository }
         val expenseRepository by lazy { SupabaseRepositoryManager.expenseRepository }
+        // userRepository removed - DB triggers handle profile creation automatically
         
         // Enhanced repositories
         val cachedPostRepository get() = repositoryManager.cachedPostRepository

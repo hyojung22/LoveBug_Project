@@ -3,6 +3,7 @@ package com.example.lovebug_project.auth
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
@@ -16,6 +17,8 @@ import kotlinx.coroutines.launch
 import java.util.regex.Pattern
 
 class JoinActivity : AppCompatActivity() {
+    private var isLoading = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -35,7 +38,19 @@ class JoinActivity : AppCompatActivity() {
         }
     }
 
+    private fun setLoadingState(binding: ActivityJoinBinding, loading: Boolean) {
+        isLoading = loading
+        binding.btnRegister.isEnabled = !loading
+        binding.btnRegister.text = if (loading) "처리 중..." else "등록"
+        binding.loadingIndicator.visibility = if (loading) View.VISIBLE else View.GONE
+        binding.loadingMessage.visibility = if (loading) View.VISIBLE else View.GONE
+    }
+
     private fun registerUser(binding: ActivityJoinBinding) {
+        // 중복 클릭 방지
+        if (isLoading) {
+            return
+        }
 
         val name = binding.inputName.text.toString().trim()
         val nickname = binding.inputNickname.text.toString().trim()
@@ -60,6 +75,9 @@ class JoinActivity : AppCompatActivity() {
             Toast.makeText(this, passwordValidation.second, Toast.LENGTH_LONG).show()
             return
         }
+
+        // 로딩 상태 시작
+        setLoadingState(binding, true)
         // Supabase로 회원가입 시도
         lifecycleScope.launch {
                     try {
@@ -72,23 +90,27 @@ class JoinActivity : AppCompatActivity() {
                         
                 result.fold(
                     onSuccess = { userInfo: io.github.jan.supabase.auth.user.UserInfo? ->
+                        setLoadingState(binding, false) // 로딩 종료
                         userInfo?.let { user ->
                             // 회원가입 성공 시 사용자 ID 저장
                             val sharedPref = getSharedPreferences("user_prefs", MODE_PRIVATE)
                             sharedPref.edit().putString("supabase_user_id", user.id).apply()
                             
-                            // 이메일 인증 안내 다이얼로그 표시
+                            // 이메일 인증 안내 다이얼로그 표시 
+                            // (DB 트리거가 자동으로 profiles 테이블에 레코드 생성함)
                             showEmailVerificationDialog(email)
                         } ?: run {
                             Toast.makeText(this@JoinActivity, "회원가입 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { exception: Throwable ->
+                        setLoadingState(binding, false) // 로딩 종료
                         Log.e("JoinActivity", "Sign up failed", exception)
                         handleSignUpError(exception)
                     }
                 )
             } catch (e: Exception) {
+                setLoadingState(binding, false) // 로딩 종료
                 Log.e("JoinActivity", "Sign up error", e)
                 Toast.makeText(this@JoinActivity, "회원가입 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
             }

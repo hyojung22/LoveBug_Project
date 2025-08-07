@@ -5,12 +5,16 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.lovebug_project.R
 import com.example.lovebug_project.chat.ChatFragment // 채팅 프래그먼트 import
 import com.example.lovebug_project.chatlist.adapter.ChatListAdapter
 import com.example.lovebug_project.chatlist.model.ChatRoom
+import com.example.lovebug_project.data.repository.SupabaseChatRepository
 import com.example.lovebug_project.databinding.FragmentChatListBinding
+import kotlinx.coroutines.launch
 
 class ChatListFragment : Fragment() {
 
@@ -19,6 +23,7 @@ class ChatListFragment : Fragment() {
 
     private lateinit var chatListAdapter: ChatListAdapter
     private val chatRoomList = mutableListOf<ChatRoom>() // 실제로는 ViewModel이나 Repository에서 가져옴
+    private val chatRepository = SupabaseChatRepository()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -32,6 +37,7 @@ class ChatListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerView()
+        setupFloatingActionButton()
         loadChatRooms() // 임시 데이터 로드
     }
 
@@ -43,6 +49,12 @@ class ChatListFragment : Fragment() {
         binding.recyclerViewChatList.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = chatListAdapter
+        }
+    }
+
+    private fun setupFloatingActionButton() {
+        binding.fabStartNewChat.setOnClickListener {
+            showStartNewChatDialog()
         }
     }
 
@@ -58,6 +70,46 @@ class ChatListFragment : Fragment() {
             .replace(R.id.frame, chatFragment) // MainActivity의 FrameLayout ID
             .addToBackStack(null) // 뒤로가기 버튼으로 ChatListFragment로 돌아올 수 있도록 함
             .commit()
+    }
+
+    // 새 채팅 시작 다이얼로그 표시
+    private fun showStartNewChatDialog() {
+        val dialog = StartNewChatDialogFragment { nickname ->
+            // 닉네임으로 채팅 시작
+            startChatWithNickname(nickname)
+        }
+        dialog.show(childFragmentManager, "StartNewChatDialog")
+    }
+
+    // 닉네임으로 채팅 시작
+    private fun startChatWithNickname(nickname: String) {
+        lifecycleScope.launch {
+            try {
+                // TODO: 현재 로그인된 사용자 ID 가져오기 (실제 구현 시 AuthRepository 사용)
+                val currentUserId = "current_user_id" // 임시
+                
+                // 닉네임으로 채팅방 생성 또는 기존 채팅방 가져오기
+                val chat = chatRepository.startChatWithNickname(currentUserId, nickname)
+                
+                if (chat != null) {
+                    // 성공적으로 채팅방을 생성/가져온 경우
+                    val chatRoom = ChatRoom(
+                        roomId = chat.chatId.toString(),
+                        partnerName = nickname,
+                        lastMessage = "채팅을 시작하세요",
+                        timestamp = System.currentTimeMillis(),
+                        partnerProfileImageUrl = null
+                    )
+                    navigateToChatFragment(chatRoom)
+                } else {
+                    // 실패한 경우
+                    Toast.makeText(context, "채팅방 생성에 실패했습니다. 닉네임을 확인해주세요.", Toast.LENGTH_SHORT).show()
+                }
+                
+            } catch (e: Exception) {
+                Toast.makeText(context, "오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // 임시로 대화방 목록 데이터 생성 (실제로는 서버나 로컬 DB에서 가져와야 함)

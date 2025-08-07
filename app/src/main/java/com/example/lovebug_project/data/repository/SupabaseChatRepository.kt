@@ -3,6 +3,10 @@ package com.example.lovebug_project.data.repository
 import com.example.lovebug_project.data.supabase.SupabaseClient
 import com.example.lovebug_project.data.supabase.models.Chat
 import com.example.lovebug_project.data.supabase.models.ChatMessage
+import com.example.lovebug_project.data.supabase.models.ChatRoomInfo
+import com.example.lovebug_project.data.supabase.models.ChatUserSearchResult
+import com.example.lovebug_project.data.supabase.models.PartnerProfile
+import com.example.lovebug_project.data.supabase.models.UserProfile
 import com.example.lovebug_project.utils.ErrorReporter
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
@@ -269,6 +273,127 @@ class SupabaseChatRepository {
         } catch (e: Exception) {
             ErrorReporter.logSupabaseError("UpdateChatTimestamp", e,
                 ErrorReporter.createContext("chatId" to chatId))
+        }
+    }
+    
+    /**
+     * Start a chat with user by nickname
+     * @param currentUserId Current user ID
+     * @param targetNickname Target user's nickname
+     * @return Chat room or null if failed
+     */
+    suspend fun startChatWithNickname(currentUserId: String, targetNickname: String): Chat? {
+        return try {
+            // First, find the user by nickname
+            val targetUser = supabase.from("profiles")
+                .select {
+                    filter {
+                        ilike("nickname", targetNickname.trim())
+                    }
+                    limit(1L)
+                }
+                .decodeSingleOrNull<UserProfile>()
+            
+            if (targetUser == null) {
+                ErrorReporter.logSupabaseError("ChatRepository", 
+                    Exception("User not found with nickname: $targetNickname"))
+                return null
+            }
+            
+            if (targetUser.id == currentUserId) {
+                ErrorReporter.logSupabaseError("ChatRepository", 
+                    Exception("Cannot start chat with yourself"))
+                return null
+            }
+            
+            // Create or get existing chat room
+            createOrGetChatRoom(currentUserId, targetUser.id)
+            
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError("StartChatWithNickname", e,
+                ErrorReporter.createContext("currentUserId" to currentUserId, "targetNickname" to targetNickname))
+            null
+        }
+    }
+    
+    /**
+     * Get chat rooms with participant information (including nicknames)
+     * @param userId User ID
+     * @return List of chat rooms with participant details
+     */
+    suspend fun getUserChatsWithParticipants(userId: String): List<ChatRoomInfo> {
+        return try {
+            val chats = supabase.from("chats")
+                .select {
+                    filter {
+                        or {
+                            eq("user1_id", userId)
+                            eq("user2_id", userId)
+                        }
+                    }
+                }
+                .decodeList<Chat>()
+            
+            // Get participant information for each chat
+            chats.mapNotNull { chat ->
+                val partnerId = if (chat.user1Id == userId) chat.user2Id else chat.user1Id
+                
+                val partnerProfile = supabase.from("profiles")
+                    .select(Columns.list("id", "nickname", "avatar_url")) {
+                        filter {
+                            eq("id", partnerId)
+                        }
+                    }
+                    .decodeSingleOrNull<PartnerProfile>()
+                
+                if (partnerProfile != null) {
+                    ChatRoomInfo(
+                        chatId = chat.chatId,
+                        partnerId = partnerId,
+                        partnerNickname = partnerProfile.nickname,
+                        partnerAvatarUrl = partnerProfile.avatarUrl,
+                        updatedAt = chat.updatedAt ?: "",
+                        createdAt = chat.createdAt ?: ""
+                    )
+                } else {
+                    null
+                }
+            }
+            
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError("GetUserChatsWithParticipants", e,
+                ErrorReporter.createContext("userId" to userId))
+            emptyList()
+        }
+    }
+    
+    /**
+     * Search for users by nickname for starting new chats
+     * @param nickname Nickname to search for
+     * @param currentUserId Current user ID (to exclude from results)
+     * @param limit Maximum number of results
+     * @return List of users matching the search
+     */
+    suspend fun searchUsersForChat(nickname: String, currentUserId: String, limit: Int = 10): List<ChatUserSearchResult> {
+        return try {
+            if (nickname.isBlank()) {
+                return emptyList()
+            }
+            
+            supabase.from("profiles")
+                .select(Columns.list("id", "nickname", "avatar_url")) {
+                    filter {
+                        ilike("nickname", "%${nickname.trim()}%")
+                        neq("id", currentUserId) // Exclude current user
+                    }
+                    limit(limit.toLong())
+                }
+                .decodeList<ChatUserSearchResult>()
+                
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError("SearchUsersForChat", e,
+                ErrorReporter.createContext("nickname" to nickname, "currentUserId" to currentUserId))
+            emptyList()
         }
     }
 }
