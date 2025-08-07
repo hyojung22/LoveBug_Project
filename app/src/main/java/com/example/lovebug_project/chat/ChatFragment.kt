@@ -49,7 +49,8 @@ class ChatFragment : Fragment() {
     private val chatRepository = SupabaseChatRepository()
     private var currentChat: Chat? = null
     
-    // Presence tracking
+    // Realtime channels
+    private var messageChannel: RealtimeChannel? = null
     private var presenceChannel: RealtimeChannel? = null
     private val onlineUsers = mutableSetOf<String>()
     private var isPartnerOnline = false
@@ -357,6 +358,9 @@ class ChatFragment : Fragment() {
                 Log.d("ChatFragment", "📞 Calling chatRepository.subscribeToNewMessages($chatRoomId)")
                 val (channel, messageFlow) = chatRepository.subscribeToNewMessages(chatRoomId)
                 
+                // Store channel for cleanup
+                messageChannel = channel
+                
                 Log.d("ChatFragment", "✅ Successfully got channel and flow from repository")
                 Log.d("ChatFragment", "Channel: $channel")
                 Log.d("ChatFragment", "Flow: $messageFlow")
@@ -533,10 +537,22 @@ class ChatFragment : Fragment() {
         
         super.onDestroyView()
         
-        // Cleanup presence tracking
-        Log.d("ChatFragment", "🧹 Cleaning up presence tracking...")
+        // Cleanup all channels
+        Log.d("ChatFragment", "🧹 Cleaning up all channels...")
         lifecycleScope.launch {
             try {
+                // Cleanup message channel
+                if (messageChannel != null) {
+                    Log.d("ChatFragment", "📡 Unsubscribing from message channel...")
+                    Log.d("ChatFragment", "Message channel status before cleanup: ${messageChannel?.status}")
+                    messageChannel?.unsubscribe()
+                    messageChannel = null
+                    Log.d("ChatFragment", "✅ Message channel unsubscribed and cleared")
+                } else {
+                    Log.d("ChatFragment", "ℹ️ No message channel to cleanup")
+                }
+                
+                // Cleanup presence channel
                 if (presenceChannel != null) {
                     Log.d("ChatFragment", "📡 Unsubscribing from presence channel...")
                     Log.d("ChatFragment", "Presence channel status before cleanup: ${presenceChannel?.status}")
@@ -547,7 +563,7 @@ class ChatFragment : Fragment() {
                     Log.d("ChatFragment", "ℹ️ No presence channel to cleanup")
                 }
             } catch (e: Exception) {
-                Log.e("ChatFragment", "❌ Error cleaning up presence channel", e)
+                Log.e("ChatFragment", "❌ Error cleaning up channels", e)
             }
         }
         

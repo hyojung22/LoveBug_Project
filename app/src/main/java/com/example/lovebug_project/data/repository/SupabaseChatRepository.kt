@@ -217,14 +217,14 @@ class SupabaseChatRepository {
         }
         android.util.Log.d("SupabaseChatRepo", "✅ Realtime connection established")
         
-        // Create channel
+        // Always create new channel - no reuse to avoid postgresChangeFlow issues
         val channelName = "chat-messages-$chatId"
-        android.util.Log.d("SupabaseChatRepo", "Creating Realtime channel: $channelName")
+        android.util.Log.d("SupabaseChatRepo", "Creating new Realtime channel: $channelName")
         val channel = realtime.channel(channelName)
         android.util.Log.d("SupabaseChatRepo", "Channel created: ${channel}")
         android.util.Log.d("SupabaseChatRepo", "Channel status before setup: ${channel.status}")
         
-        // Create postgresChangeFlow first (without server-side filter due to version compatibility)
+        // Create postgresChangeFlow BEFORE subscribe (this is critical!)
         android.util.Log.d("SupabaseChatRepo", "Creating postgresChangeFlow for table: chat_messages")
         val flow = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "chat_messages"
@@ -234,21 +234,28 @@ class SupabaseChatRepository {
         android.util.Log.d("SupabaseChatRepo", "✅ PostgresChangeFlow created for table: chat_messages")
         ErrorReporter.logSuccess("RealtimeSetup", "Created postgresChangeFlow for table: chat_messages, chat: $chatId")
 
-
+        // Subscribe to channel AFTER creating postgresChangeFlow
+        android.util.Log.d("SupabaseChatRepo", "Subscribing to channel...")
         channel.subscribe()
 
-        // Brief delay to allow setup
-        kotlinx.coroutines.delay(500)
-        android.util.Log.d("SupabaseChatRepo", "Channel status after setup: ${channel.status}")
-
-
-        // Wait for join to complete
+        // Brief delay to allow subscription
         kotlinx.coroutines.delay(1000)
-        android.util.Log.d("SupabaseChatRepo", "Channel status after join: ${channel.status}")
+        android.util.Log.d("SupabaseChatRepo", "Channel status after subscription: ${channel.status}")
         
-        ErrorReporter.logSuccess("RealtimeChannel", "Channel explicitly joined for chat: $chatId")
+        ErrorReporter.logSuccess("RealtimeChannel", "Channel subscribed for chat: $chatId")
         
-        val messageFlow = flow
+        val messageFlow = createMessageFlow(channel, chatId, flow)
+        
+        android.util.Log.d("SupabaseChatRepo", "📡 <== subscribeToNewMessages() returning channel and flow")
+        return Pair(channel, messageFlow)
+    }
+    
+    
+    /**
+     * 새로운 채널과 flow로부터 message flow 생성
+     */
+    private fun createMessageFlow(channel: RealtimeChannel, chatId: Int, flow: Flow<PostgresAction.Insert>): Flow<ChatMessage> {
+        return flow
             .onStart {
                 android.util.Log.d("SupabaseChatRepo", "🔄 Message flow started collecting for chat: $chatId")
                 android.util.Log.d("SupabaseChatRepo", "Final channel status: ${channel.status}")
@@ -303,9 +310,6 @@ class SupabaseChatRepository {
                     ErrorReporter.createContext("chatId" to chatId, "channel" to "chat-messages-$chatId"))
                 throw error
             }
-            
-        android.util.Log.d("SupabaseChatRepo", "📡 <== subscribeToNewMessages() returning channel and flow")
-        return Pair(channel, messageFlow)
     }
     
     /**
