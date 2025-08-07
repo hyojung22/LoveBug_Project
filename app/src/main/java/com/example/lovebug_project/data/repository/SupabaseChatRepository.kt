@@ -15,6 +15,7 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.RealtimeChannel
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 
@@ -24,7 +25,7 @@ import kotlinx.serialization.json.Json
  */
 class SupabaseChatRepository {
     
-    private val supabase = SupabaseClient.client
+    val supabase = SupabaseClient.client
     private val realtime = supabase.realtime
     
     /**
@@ -33,10 +34,23 @@ class SupabaseChatRepository {
      */
     suspend fun ensureRealtimeConnection(): Boolean {
         return try {
+            android.util.Log.d("SupabaseChatRepo", "🔌 Attempting to establish Realtime connection...")
+            android.util.Log.d("SupabaseChatRepo", "Realtime instance: ${realtime}")
+            android.util.Log.d("SupabaseChatRepo", "Current Realtime status before connect: ${realtime.status}")
+            
             realtime.connect()
+            
+            // Wait a bit to allow connection to establish
+            kotlinx.coroutines.delay(2000)
+            
+            android.util.Log.d("SupabaseChatRepo", "Realtime status after connect: ${realtime.status}")
+            android.util.Log.d("SupabaseChatRepo", "✅ Realtime connection attempt completed")
+            
             ErrorReporter.logSuccess("RealtimeConnection", "WebSocket connection established")
             true
         } catch (e: Exception) {
+            android.util.Log.e("SupabaseChatRepo", "❌ Realtime connection failed", e)
+            android.util.Log.e("SupabaseChatRepo", "Error details: ${e.message}")
             ErrorReporter.logSupabaseError("RealtimeConnection", e)
             false
         }
@@ -64,8 +78,9 @@ class SupabaseChatRepository {
     suspend fun createOrGetChatRoom(user1Id: String, user2Id: String): Chat? {
         return try {
             // First check if chat room already exists (both directions)
+            // Use explicit column selection to avoid RLS infinite recursion
             val existingChat = supabase.from("chats")
-                .select {
+                .select(Columns.list("chat_id", "user1_id", "user2_id", "created_at", "updated_at")) {
                     filter {
                         or {
                             and {
@@ -113,12 +128,22 @@ class SupabaseChatRepository {
      */
     suspend fun sendMessage(chatId: Int, senderId: String, message: String): ChatMessage? {
         return try {
+            android.util.Log.d("SupabaseChatRepo", "💬 ==> sendMessage() called")
+            android.util.Log.d("SupabaseChatRepo", "ChatId: $chatId, SenderId: $senderId")
+            android.util.Log.d("SupabaseChatRepo", "Message: '$message'")
+            
+            val timestamp = java.time.Instant.now().toString()
+            android.util.Log.d("SupabaseChatRepo", "Generated timestamp: $timestamp")
+            
             val chatMessage = ChatMessage(
                 chatId = chatId,
                 senderId = senderId,
                 message = message,
-                timestamp = java.time.Instant.now().toString()
+                timestamp = timestamp
             )
+            
+            android.util.Log.d("SupabaseChatRepo", "Created ChatMessage object: $chatMessage")
+            android.util.Log.d("SupabaseChatRepo", "Inserting message to Supabase...")
             
             val sentMessage = supabase.from("chat_messages")
                 .insert(chatMessage) {
@@ -126,10 +151,18 @@ class SupabaseChatRepository {
                 }
                 .decodeSingle<ChatMessage>()
             
+            android.util.Log.d("SupabaseChatRepo", "✅ Message inserted successfully!")
+            android.util.Log.d("SupabaseChatRepo", "Returned message ID: ${sentMessage.messageId}")
+            android.util.Log.d("SupabaseChatRepo", "Returned message: $sentMessage")
+            android.util.Log.d("SupabaseChatRepo", "💬 <== sendMessage() completed successfully")
+            
             ErrorReporter.logSuccess("ChatRepository", "Message sent: ${sentMessage.messageId}")
             sentMessage
             
         } catch (e: Exception) {
+            android.util.Log.e("SupabaseChatRepo", "❌ sendMessage() failed", e)
+            android.util.Log.e("SupabaseChatRepo", "Error type: ${e::class.simpleName}")
+            android.util.Log.e("SupabaseChatRepo", "Error message: ${e.message}")
             ErrorReporter.logSupabaseError("SendMessage", e,
                 ErrorReporter.createContext("chatId" to chatId, "senderId" to senderId))
             null
@@ -144,8 +177,9 @@ class SupabaseChatRepository {
      */
     suspend fun getChatMessages(chatId: Int, limit: Int = 50): List<ChatMessage> {
         return try {
+            // Use explicit column selection to avoid potential RLS issues
             supabase.from("chat_messages")
-                .select {
+                .select(Columns.list("message_id", "chat_id", "sender_id", "message", "timestamp")) {
                     filter { 
                         eq("chat_id", chatId)
                     }
@@ -164,46 +198,114 @@ class SupabaseChatRepository {
     /**
      * Subscribe to new messages in a specific chat room
      * @param chatId Chat room ID to subscribe to
-     * @return Flow of new chat messages
+     * @return Pair of RealtimeChannel and Flow of new chat messages
      */
-    suspend fun subscribeToNewMessages(chatId: Int): Flow<ChatMessage> {
+    suspend fun subscribeToNewMessages(chatId: Int): Pair<RealtimeChannel, Flow<ChatMessage>> {
+        android.util.Log.d("SupabaseChatRepo", "📡 ==> subscribeToNewMessages() called for chatId: $chatId")
+        
+        // Get current user info for debugging
+        val currentUser = supabase.auth.currentUserOrNull()
+        android.util.Log.d("SupabaseChatRepo", "Current user: ${currentUser?.id}")
+        android.util.Log.d("SupabaseChatRepo", "User role: ${currentUser?.role}")
+        android.util.Log.d("SupabaseChatRepo", "User aud: ${currentUser?.aud}")
+        
         // Ensure realtime connection is established
+        android.util.Log.d("SupabaseChatRepo", "Ensuring Realtime connection...")
         if (!ensureRealtimeConnection()) {
+            android.util.Log.e("SupabaseChatRepo", "❌ Failed to establish realtime connection")
             throw Exception("Failed to establish realtime connection")
         }
+        android.util.Log.d("SupabaseChatRepo", "✅ Realtime connection established")
         
-        val channel = realtime.channel("chat-messages-$chatId")
+        // Create channel
+        val channelName = "chat-messages-$chatId"
+        android.util.Log.d("SupabaseChatRepo", "Creating Realtime channel: $channelName")
+        val channel = realtime.channel(channelName)
+        android.util.Log.d("SupabaseChatRepo", "Channel created: ${channel}")
+        android.util.Log.d("SupabaseChatRepo", "Channel status before setup: ${channel.status}")
+        
+        // Create postgresChangeFlow first (without server-side filter due to version compatibility)
+        android.util.Log.d("SupabaseChatRepo", "Creating postgresChangeFlow for table: chat_messages")
         val flow = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "chat_messages"
+            // Remove server-side filtering due to API changes in version 3.0.3
+            // Will use client-side filtering instead
         }
+        android.util.Log.d("SupabaseChatRepo", "✅ PostgresChangeFlow created for table: chat_messages")
+        ErrorReporter.logSuccess("RealtimeSetup", "Created postgresChangeFlow for table: chat_messages, chat: $chatId")
+
+
+        channel.subscribe()
+
+        // Brief delay to allow setup
+        kotlinx.coroutines.delay(500)
+        android.util.Log.d("SupabaseChatRepo", "Channel status after setup: ${channel.status}")
+
+
+        // Wait for join to complete
+        kotlinx.coroutines.delay(1000)
+        android.util.Log.d("SupabaseChatRepo", "Channel status after join: ${channel.status}")
         
-        // Channel will be automatically joined when collecting the flow
+        ErrorReporter.logSuccess("RealtimeChannel", "Channel explicitly joined for chat: $chatId")
         
-        return flow
+        val messageFlow = flow
+            .onStart {
+                android.util.Log.d("SupabaseChatRepo", "🔄 Message flow started collecting for chat: $chatId")
+                android.util.Log.d("SupabaseChatRepo", "Final channel status: ${channel.status}")
+            }
+            .onEach { action ->
+                android.util.Log.d("SupabaseChatRepo", "🔔 RAW ACTION RECEIVED: ${action}")
+                android.util.Log.d("SupabaseChatRepo", "Action type: ${action::class.simpleName}")
+                android.util.Log.d("SupabaseChatRepo", "Action record: ${action.record}")
+            }
             .filter { action ->
-                // Filter for messages in this specific chat
+                // Client-side filtering for this specific chat
+                android.util.Log.d("SupabaseChatRepo", "Filtering message for chat: $chatId")
                 try {
                     val message = Json.decodeFromJsonElement(ChatMessage.serializer(), action.record)
-                    message.chatId == chatId
+                    val isMatchingChat = message.chatId == chatId
+                    android.util.Log.d("SupabaseChatRepo", "Message ${message.messageId} chatId: ${message.chatId}, expecting: $chatId, match: $isMatchingChat")
+                    if (isMatchingChat) {
+                        android.util.Log.d("SupabaseChatRepo", "✅ Message ${message.messageId} matches chat $chatId")
+                        ErrorReporter.logSuccess("RealtimeFilter", "Message ${message.messageId} matches chat $chatId")
+                    } else {
+                        android.util.Log.d("SupabaseChatRepo", "⚠️ Message ${message.messageId} for chat ${message.chatId} ignored (expecting $chatId)")
+                        ErrorReporter.logSuccess("RealtimeFilter", "Message ${message.messageId} for chat ${message.chatId} ignored (expecting $chatId)")
+                    }
+                    isMatchingChat
                 } catch (e: Exception) {
+                    android.util.Log.e("SupabaseChatRepo", "❌ Error decoding message in filter", e)
+                    android.util.Log.e("SupabaseChatRepo", "Record content: ${action.record}")
+                    ErrorReporter.logSupabaseError("RealtimeFilterError", e,
+                        ErrorReporter.createContext("action" to "INSERT", "table" to "chat_messages", "expectedChatId" to chatId))
                     false
                 }
             }
             .map { action ->
+                android.util.Log.d("SupabaseChatRepo", "Mapping filtered action to ChatMessage")
                 try {
                     val message = Json.decodeFromJsonElement(ChatMessage.serializer(), action.record)
-                    ErrorReporter.logSuccess("RealtimeChatMessage", "New message: ${message.messageId}")
+                    android.util.Log.d("SupabaseChatRepo", "✅ Successfully decoded message: ${message.messageId}")
+                    android.util.Log.d("SupabaseChatRepo", "Message details - ID: ${message.messageId}, from: ${message.senderId}, content: ${message.message}")
+                    ErrorReporter.logSuccess("RealtimeChatMessage", "New message received: ${message.messageId} for chat: ${message.chatId}")
                     message
                 } catch (e: Exception) {
+                    android.util.Log.e("SupabaseChatRepo", "❌ Error decoding message in map", e)
                     ErrorReporter.logSupabaseError("RealtimeDecodeError", e,
                         ErrorReporter.createContext("action" to "INSERT", "table" to "chat_messages", "chatId" to chatId))
                     throw e
                 }
             }
             .catch { error ->
-                ErrorReporter.logSupabaseError("RealtimeNewMessages", error as Throwable)
+                android.util.Log.e("SupabaseChatRepo", "❌ Error in message flow", error as Throwable)
+                android.util.Log.e("SupabaseChatRepo", "Flow error details: ${error.message}")
+                ErrorReporter.logSupabaseError("RealtimeNewMessages", error as Throwable,
+                    ErrorReporter.createContext("chatId" to chatId, "channel" to "chat-messages-$chatId"))
                 throw error
             }
+            
+        android.util.Log.d("SupabaseChatRepo", "📡 <== subscribeToNewMessages() returning channel and flow")
+        return Pair(channel, messageFlow)
     }
     
     /**
@@ -285,8 +387,9 @@ class SupabaseChatRepository {
      */
     suspend fun getUserChats(userId: String): List<Chat> {
         return try {
+            // Use explicit column selection to avoid RLS infinite recursion
             supabase.from("chats")
-                .select {
+                .select(Columns.list("chat_id", "user1_id", "user2_id", "created_at", "updated_at")) {
                     filter {
                         or {
                             eq("user1_id", userId)
@@ -370,8 +473,9 @@ class SupabaseChatRepository {
      */
     suspend fun getUserChatsWithParticipants(userId: String): List<ChatRoomInfo> {
         return try {
+            // Use explicit column selection to avoid RLS infinite recursion
             val chats = supabase.from("chats")
-                .select {
+                .select(Columns.list("chat_id", "user1_id", "user2_id", "created_at", "updated_at")) {
                     filter {
                         or {
                             eq("user1_id", userId)
@@ -451,8 +555,9 @@ class SupabaseChatRepository {
      */
     suspend fun getUserChatsWithLastMessage(userId: String): List<ChatRoomInfo> {
         return try {
+            // Use explicit column selection to avoid RLS infinite recursion
             val chats = supabase.from("chats")
-                .select {
+                .select(Columns.list("chat_id", "user1_id", "user2_id", "created_at", "updated_at")) {
                     filter {
                         or {
                             eq("user1_id", userId)
@@ -484,12 +589,13 @@ class SupabaseChatRepository {
                     }
                     .decodeSingleOrNull<PartnerProfile>()
                 
-                // Get last message for this chat
+                // Get last message for this chat (explicit column selection)
                 val messages = supabase.from("chat_messages")
-                    .select(Columns.list("chat_id", "sender_id", "message", "timestamp")) {
+                    .select(Columns.list("message_id", "chat_id", "sender_id", "message", "timestamp")) {
                         filter {
                             eq("chat_id", chat.chatId)
                         }
+                        limit(50L) // Limit to avoid loading too many messages
                     }
                     .decodeList<ChatMessage>()
                 
@@ -521,6 +627,22 @@ class SupabaseChatRepository {
             }
             
         } catch (e: Exception) {
+            // Special handling for RLS infinite recursion error
+            if (e.message?.contains("infinite recursion detected") == true) {
+                ErrorReporter.logSupabaseError("GetUserChatsWithLastMessage", 
+                    Exception("RLS policy infinite recursion detected - using fallback approach", e),
+                    ErrorReporter.createContext("userId" to userId, "fallback" to "simple_query"))
+                
+                // Fallback: Try a simpler approach without complex RLS queries
+                try {
+                    return getUserChatsWithParticipants(userId)
+                } catch (fallbackException: Exception) {
+                    ErrorReporter.logSupabaseError("GetUserChatsWithLastMessage_Fallback", fallbackException,
+                        ErrorReporter.createContext("userId" to userId))
+                    return emptyList()
+                }
+            }
+            
             ErrorReporter.logSupabaseError("GetUserChatsWithLastMessage", e,
                 ErrorReporter.createContext("userId" to userId))
             emptyList()

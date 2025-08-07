@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    kotlin("plugin.serialization") version "1.9.20"
+    kotlin("plugin.serialization") version libs.versions.kotlin.get()
 }
 
 android {
@@ -51,8 +51,8 @@ android {
 
 dependencies {
     // Supabase
-    val supabaseVersion = "3.0.3"
-    val ktorVersion = "3.0.2"
+    val supabaseVersion = "3.2.2"
+    val ktorVersion = "3.2.2"
     implementation(platform("io.github.jan-tennert.supabase:bom:$supabaseVersion"))
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:postgrest-kt")

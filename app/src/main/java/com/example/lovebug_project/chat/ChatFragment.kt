@@ -21,6 +21,19 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.format.DateTimeParseException
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.channel
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.Serializable
+
+/**
+ * Data class for presence tracking
+ */
+@Serializable
+data class PresenceData(val userId: String, val username: String)
 
 class ChatFragment : Fragment() {
 
@@ -35,6 +48,11 @@ class ChatFragment : Fragment() {
     
     private val chatRepository = SupabaseChatRepository()
     private var currentChat: Chat? = null
+    
+    // Presence tracking
+    private var presenceChannel: RealtimeChannel? = null
+    private val onlineUsers = mutableSetOf<String>()
+    private var isPartnerOnline = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,7 +98,7 @@ class ChatFragment : Fragment() {
         setupRecyclerView()
         setupSendButton()
         setupKeyboardDismissListener()
-        // Note: loadChatHistory() and subscribeToRealtimeMessages() will be called after chat room is initialized
+        // Note: loadChatHistory() and WebSocket connection will be established after chat room is initialized
     }
 
     private fun setupRecyclerView() {
@@ -103,35 +121,67 @@ class ChatFragment : Fragment() {
     private fun setupSendButton() {
         binding.buttonSend.setOnClickListener {
             val messageText = binding.editTextMessage.text.toString().trim()
+            Log.d("ChatFragment", "Send button clicked. Message: '$messageText', userId: $currentUserId, chatRoomId: $chatRoomId")
+            
             if (messageText.isNotEmpty() && currentUserId != null && chatRoomId != -1) {
+                Log.d("ChatFragment", "Calling sendMessage with: '$messageText'")
                 sendMessage(messageText)
                 binding.editTextMessage.text.clear()
                 binding.editTextMessage.hideKeyboard()
             } else {
                 Log.w("ChatFragment", "Cannot send message: text empty or chat not initialized")
+                Log.w("ChatFragment", "Debug - messageText.isNotEmpty(): ${messageText.isNotEmpty()}, currentUserId: $currentUserId, chatRoomId: $chatRoomId")
             }
         }
     }
 
     /**
-     * Send message using Supabase real-time chat
+     * Send message - Always saves to database for reliable background messaging
+     * 실제 구현에서는 백그라운드에서도 채팅 메시지를 받을 수 있도록 하기 위해 항상 DB에 저장
      */
     private fun sendMessage(text: String) {
-        val userId = currentUserId ?: return
+        val userId = currentUserId ?: run {
+            Log.e("ChatFragment", "❌ Cannot send message - currentUserId is null")
+            return
+        }
+        
+        Log.d("ChatFragment", "📤 ==> sendMessage() called")
+        Log.d("ChatFragment", "Text: '$text'")
+        Log.d("ChatFragment", "UserId: $userId")
+        Log.d("ChatFragment", "ChatRoomId: $chatRoomId")
+        Log.d("ChatFragment", "Fragment lifecycle: ${lifecycle.currentState}")
+        Log.d("ChatFragment", "View binding exists: ${_binding != null}")
         
         lifecycleScope.launch {
             try {
+                Log.d("ChatFragment", "🚀 Starting sendMessage coroutine...")
+                
+                // 항상 DB에 저장하여 백그라운드에서도 메시지를 받을 수 있도록 함
+                Log.d("ChatFragment", "📞 Calling chatRepository.sendMessage()")
+                Log.d("ChatFragment", "Parameters - chatRoomId: $chatRoomId, userId: $userId, text: '$text'")
                 val sentMessage = chatRepository.sendMessage(chatRoomId, userId, text)
+                
                 if (sentMessage != null) {
-                    Log.d("ChatFragment", "Message sent successfully: ${sentMessage.messageId}")
-                    // Update chat timestamp
-                    chatRepository.updateChatTimestamp(chatRoomId)
+                    Log.d("ChatFragment", "✅ Message successfully sent to DB!")
+                    Log.d("ChatFragment", "Sent message ID: ${sentMessage.messageId}")
+                    Log.d("ChatFragment", "Sent message chatId: ${sentMessage.chatId}")
+                    Log.d("ChatFragment", "Sent message senderId: ${sentMessage.senderId}")
+                    Log.d("ChatFragment", "Sent message content: '${sentMessage.message}'")
+                    Log.d("ChatFragment", "Sent message timestamp: ${sentMessage.timestamp}")
+                    Log.d("ChatFragment", "📡 UI update will be handled by Realtime subscription")
+                    Log.d("ChatFragment", "🔄 Waiting for Realtime to receive this message...")
                 } else {
-                    Log.e("ChatFragment", "Failed to send message")
+                    Log.e("ChatFragment", "❌ Failed to send message to DB - returned null")
                     // TODO: Show error to user
                 }
+                
+                Log.d("ChatFragment", "📤 <== sendMessage() coroutine completed")
+                
             } catch (e: Exception) {
-                Log.e("ChatFragment", "Error sending message", e)
+                Log.e("ChatFragment", "❌ ERROR in sendMessage() coroutine", e)
+                Log.e("ChatFragment", "Error type: ${e::class.simpleName}")
+                Log.e("ChatFragment", "Error message: ${e.message}")
+                Log.e("ChatFragment", "Error cause: ${e.cause}")
                 // TODO: Show error to user
             }
         }
@@ -172,25 +222,61 @@ class ChatFragment : Fragment() {
      * Initialize or get existing chat room
      */
     private fun initializeChatRoom() {
-        val userId = currentUserId ?: return
-        val partnerId = otherUserId ?: return
+        val userId = currentUserId ?: run {
+            Log.e("ChatFragment", "❌ Cannot initialize chat room - currentUserId is null")
+            return
+        }
+        val partnerId = otherUserId ?: run {
+            Log.e("ChatFragment", "❌ Cannot initialize chat room - otherUserId is null")
+            return
+        }
+        
+        Log.d("ChatFragment", "🏠 ==> initializeChatRoom() called")
+        Log.d("ChatFragment", "Current user ID: $userId")
+        Log.d("ChatFragment", "Partner user ID: $partnerId")
         
         lifecycleScope.launch {
             try {
+                Log.d("ChatFragment", "🚀 Starting initializeChatRoom coroutine...")
+                Log.d("ChatFragment", "📞 Calling chatRepository.createOrGetChatRoom()")
+                
                 val chat = chatRepository.createOrGetChatRoom(userId, partnerId)
+                
                 if (chat != null) {
                     currentChat = chat
                     chatRoomId = chat.chatId
-                    Log.d("ChatFragment", "Chat room initialized: ${chat.chatId}")
                     
-                    // Now that chat room is initialized, load history and subscribe to realtime messages
+                    Log.d("ChatFragment", "✅ Chat room initialized successfully!")
+                    Log.d("ChatFragment", "Chat ID: ${chat.chatId}")
+                    Log.d("ChatFragment", "User1: ${chat.user1Id}")
+                    Log.d("ChatFragment", "User2: ${chat.user2Id}")
+                    Log.d("ChatFragment", "Created at: ${chat.createdAt}")
+                    Log.d("ChatFragment", "Updated at: ${chat.updatedAt}")
+                    
+                    Log.d("ChatFragment", "🔄 Starting post-initialization tasks...")
+                    
+                    // Now that chat room is initialized, load history, connect Realtime, and setup presence
+                    Log.d("ChatFragment", "1/3 Loading chat history...")
                     loadChatHistory()
-                    subscribeToRealtimeMessages()
+                    
+                    Log.d("ChatFragment", "2/3 Connecting to Realtime...")
+                    connectRealtime()
+                    
+                    Log.d("ChatFragment", "3/3 Setting up presence tracking...")
+                    setupPresenceTracking()
+                    
+                    Log.d("ChatFragment", "✅ All initialization tasks started")
+                    
                 } else {
-                    Log.e("ChatFragment", "Failed to initialize chat room")
+                    Log.e("ChatFragment", "❌ Failed to initialize chat room - returned null")
                 }
+                
+                Log.d("ChatFragment", "🏠 <== initializeChatRoom() coroutine completed")
+                
             } catch (e: Exception) {
-                Log.e("ChatFragment", "Error initializing chat room", e)
+                Log.e("ChatFragment", "❌ ERROR in initializeChatRoom()", e)
+                Log.e("ChatFragment", "Error type: ${e::class.simpleName}")
+                Log.e("ChatFragment", "Error message: ${e.message}")
             }
         }
     }
@@ -200,63 +286,145 @@ class ChatFragment : Fragment() {
      */
     private fun loadChatHistory() {
         if (chatRoomId == -1) {
-            Log.w("ChatFragment", "Chat room not initialized, cannot load history")
+            Log.w("ChatFragment", "❌ Chat room not initialized, cannot load history")
             return
         }
         
+        Log.d("ChatFragment", "📚 ==> loadChatHistory() called for chatRoomId: $chatRoomId")
+        
         lifecycleScope.launch {
             try {
-                val chatMessages = chatRepository.getChatMessages(chatRoomId)
-                val localMessages = chatMessages.map { it.toLocalMessage() }
+                Log.d("ChatFragment", "🚀 Starting loadChatHistory coroutine...")
+                Log.d("ChatFragment", "📞 Calling chatRepository.getChatMessages($chatRoomId)")
                 
+                val chatMessages = chatRepository.getChatMessages(chatRoomId)
+                Log.d("ChatFragment", "✅ Retrieved ${chatMessages.size} messages from repository")
+                
+                Log.d("ChatFragment", "🔄 Converting ChatMessages to local Messages...")
+                val localMessages = chatMessages.map { it.toLocalMessage() }
+                Log.d("ChatFragment", "✅ Converted ${localMessages.size} messages")
+                
+                Log.d("ChatFragment", "📝 Updating messages list...")
+                Log.d("ChatFragment", "Messages list before: ${messagesList.size}")
                 messagesList.clear()
                 messagesList.addAll(localMessages)
+                Log.d("ChatFragment", "Messages list after: ${messagesList.size}")
+                
+                Log.d("ChatFragment", "📱 Updating UI...")
                 chatAdapter.notifyDataSetChanged()
                 
                 if (messagesList.isNotEmpty()) {
                     binding.recyclerViewChat.scrollToPosition(chatAdapter.itemCount - 1)
+                    Log.d("ChatFragment", "📜 Scrolled to last message (position ${chatAdapter.itemCount - 1})")
                 }
                 
-                Log.d("ChatFragment", "Loaded ${messagesList.size} messages")
+                Log.d("ChatFragment", "✅ Chat history loaded successfully: ${messagesList.size} messages")
+                Log.d("ChatFragment", "📚 <== loadChatHistory() completed")
                 
             } catch (e: Exception) {
-                Log.e("ChatFragment", "Error loading chat history", e)
+                Log.e("ChatFragment", "❌ ERROR in loadChatHistory()", e)
+                Log.e("ChatFragment", "Error type: ${e::class.simpleName}")
+                Log.e("ChatFragment", "Error message: ${e.message}")
             }
         }
     }
     
     /**
-     * Subscribe to real-time message updates
+     * Connect to Supabase Realtime for background-safe messaging
+     * 백그라운드에서도 안전하게 메시지를 받을 수 있도록 Supabase Realtime 사용
      */
-    private fun subscribeToRealtimeMessages() {
-        if (chatRoomId == -1) {
-            Log.w("ChatFragment", "Chat room not initialized, cannot subscribe to messages")
+    private fun connectRealtime() {
+        Log.d("ChatFragment", "🔄 ==> connectRealtime() CALLED ===")
+        Log.d("ChatFragment", "Fragment lifecycle state: ${lifecycle.currentState}")
+        Log.d("ChatFragment", "View created: ${_binding != null}")
+        
+        if (chatRoomId == -1 || currentUserId == null) {
+            Log.w("ChatFragment", "❌ Cannot connect Realtime - missing requirements")
+            Log.w("ChatFragment", "Debug - chatRoomId: $chatRoomId, currentUserId: $currentUserId")
             return
         }
         
+        Log.d("ChatFragment", "✅ Prerequisites OK - chatRoomId: $chatRoomId, userId: $currentUserId")
+        Log.d("ChatFragment", "Current messagesList size: ${messagesList.size}")
+        Log.d("ChatFragment", "ChatRepository instance: ${chatRepository}")
+        
         lifecycleScope.launch {
             try {
-                val messageFlow = chatRepository.subscribeToNewMessages(chatRoomId)
-                messageFlow
-                    .catch { error ->
-                        Log.e("ChatFragment", "Error in realtime subscription", error)
+                Log.d("ChatFragment", "🚀 Starting Realtime subscription in coroutine...")
+                Log.d("ChatFragment", "Coroutine context: ${coroutineContext}")
+                
+                // Supabase Realtime을 사용하여 새 메시지 구독
+                Log.d("ChatFragment", "📞 Calling chatRepository.subscribeToNewMessages($chatRoomId)")
+                val (channel, messageFlow) = chatRepository.subscribeToNewMessages(chatRoomId)
+                
+                Log.d("ChatFragment", "✅ Successfully got channel and flow from repository")
+                Log.d("ChatFragment", "Channel: $channel")
+                Log.d("ChatFragment", "Flow: $messageFlow")
+                Log.d("ChatFragment", "🔄 Starting messageFlow.collect() - waiting for messages...")
+                
+                var messageCount = 0
+                
+                // 실시간 메시지 수신
+                messageFlow.collect { chatMessage ->
+                    messageCount++
+                    Log.d("ChatFragment", "🔔 [$messageCount] NEW MESSAGE RECEIVED via Realtime!")
+                    Log.d("ChatFragment", "Message ID: ${chatMessage.messageId}")
+                    Log.d("ChatFragment", "From: ${chatMessage.senderId} (current user: $currentUserId)")
+                    Log.d("ChatFragment", "Chat ID: ${chatMessage.chatId} (current chat: $chatRoomId)")
+                    Log.d("ChatFragment", "Content: '${chatMessage.message}'")
+                    Log.d("ChatFragment", "Timestamp: ${chatMessage.timestamp}")
+                    
+                    // Check if we're still in the right fragment
+                    if (_binding == null) {
+                        Log.w("ChatFragment", "⚠️ Fragment view destroyed, ignoring message")
+                        return@collect
                     }
-                    .collect { chatMessage ->
-                        val localMessage = chatMessage.toLocalMessage()
+                    
+                    // ChatMessage를 local Message로 변환
+                    Log.d("ChatFragment", "🔄 Converting to local message...")
+                    val localMessage = chatMessage.toLocalMessage()
+                    Log.d("ChatFragment", "Local message ID: ${localMessage.messageId}")
+                    Log.d("ChatFragment", "Local message senderId: ${localMessage.senderId}")
+                    Log.d("ChatFragment", "Local message text: '${localMessage.text}'")
+                    
+                    // 중복 메시지 방지 (자신이 보낸 메시지 포함)
+                    Log.d("ChatFragment", "🔍 Checking for duplicates in ${messagesList.size} existing messages...")
+                    val existingMessage = messagesList.find { it.messageId == localMessage.messageId }
+                    if (existingMessage == null) {
+                        Log.d("ChatFragment", "✅ New message - adding to UI")
+                        Log.d("ChatFragment", "Messages list before: ${messagesList.size}")
                         
-                        // Only add if not already in list (avoid duplicates)
-                        if (messagesList.none { it.messageId == localMessage.messageId }) {
-                            messagesList.add(localMessage)
+                        messagesList.add(localMessage)
+                        Log.d("ChatFragment", "Messages list after: ${messagesList.size}")
+                        
+                        // Update UI on main thread
+                        binding.recyclerViewChat.post {
                             chatAdapter.notifyItemInserted(messagesList.size - 1)
                             binding.recyclerViewChat.smoothScrollToPosition(chatAdapter.itemCount - 1)
-                            
-                            Log.d("ChatFragment", "Received real-time message: ${chatMessage.messageId}")
+                            Log.d("ChatFragment", "📱 UI updated - adapter item count: ${chatAdapter.itemCount}")
                         }
+                        
+                        Log.d("ChatFragment", "✅ Added new message to UI: ${chatMessage.messageId}")
+                        Log.d("ChatFragment", "Total messages in list: ${messagesList.size}")
+                    } else {
+                        Log.d("ChatFragment", "⚠️ Duplicate message ignored: ${chatMessage.messageId}")
+                        Log.d("ChatFragment", "Existing message details: ${existingMessage}")
                     }
+                }
             } catch (e: Exception) {
-                Log.e("ChatFragment", "Failed to establish realtime subscription", e)
+                Log.e("ChatFragment", "❌ ERROR in connectRealtime() coroutine", e)
+                Log.e("ChatFragment", "Error type: ${e::class.simpleName}")
+                Log.e("ChatFragment", "Exception details: ${e.message}")
+                Log.e("ChatFragment", "Cause: ${e.cause}")
+                Log.e("ChatFragment", "Stack trace:")
+                e.stackTrace.forEach { element ->
+                    Log.e("ChatFragment", "  at $element")
+                }
+                // TODO: Show error to user or fallback to polling
             }
         }
+        
+        Log.d("ChatFragment", "🔄 <== connectRealtime() launched coroutine and returned ===")
     }
     
     /**
@@ -286,9 +454,108 @@ class ChatFragment : Fragment() {
         }
     }
 
+    /**
+     * Setup presence tracking for the chat room
+     */
+    private fun setupPresenceTracking() {
+        if (chatRoomId == -1 || currentUserId == null) {
+            Log.w("ChatFragment", "❌ Cannot setup presence: chat room or user not initialized")
+            Log.w("ChatFragment", "Debug - chatRoomId: $chatRoomId, currentUserId: $currentUserId")
+            return
+        }
+        
+        Log.d("ChatFragment", "👥 ==> setupPresenceTracking() called")
+        Log.d("ChatFragment", "ChatRoomId: $chatRoomId, UserId: $currentUserId")
+        
+        lifecycleScope.launch {
+            try {
+                Log.d("ChatFragment", "🚀 Starting presence tracking coroutine...")
+                
+                // Use the same pattern as in SupabaseChatRepository - create channel using realtime
+                val realtime = chatRepository.supabase.realtime
+                Log.d("ChatFragment", "Got realtime instance: $realtime")
+                Log.d("ChatFragment", "Realtime status: ${realtime.status}")
+                
+                val channelName = "chat-presence-$chatRoomId"
+                Log.d("ChatFragment", "Creating presence channel: $channelName")
+                presenceChannel = realtime.channel(channelName)
+                
+                Log.d("ChatFragment", "Presence channel created: ${presenceChannel}")
+                Log.d("ChatFragment", "Presence channel status: ${presenceChannel?.status}")
+                
+                // Subscribe to the channel
+                Log.d("ChatFragment", "📡 Subscribing to presence channel...")
+                presenceChannel?.subscribe()
+                
+                // **FIX: Wait longer and verify subscription status**
+                Log.d("ChatFragment", "⏳ Waiting for subscription to complete...")
+                kotlinx.coroutines.delay(2000) // Increased delay
+                Log.d("ChatFragment", "Presence channel status after subscribe: ${presenceChannel?.status}")
+                
+                // **FIX: Only track presence if channel is actually subscribed**
+                if (presenceChannel?.status.toString() == "SUBSCRIBED") {
+                    Log.d("ChatFragment", "👤 Channel subscribed - tracking user presence...")
+                    val presenceData = buildJsonObject {
+                        put("user_id", currentUserId!!)
+                        put("username", "user-$currentUserId")
+                        put("online_at", java.time.Instant.now().toString())
+                    }
+                    Log.d("ChatFragment", "Presence data: $presenceData")
+                    
+                    presenceChannel?.track(presenceData)
+                    Log.d("ChatFragment", "✅ User presence tracked")
+                } else {
+                    Log.w("ChatFragment", "⚠️ Channel not subscribed yet, skipping presence tracking")
+                    Log.w("ChatFragment", "Current status: ${presenceChannel?.status}")
+                }
+                
+                // 간단한 presence 추적 - Supabase Realtime을 통해 관리됨
+                // 실제 구현에서는 백그라운드에서도 채팅 메시지를 받을 수 있도록 하기 위해 항상 DB에 저장
+                isPartnerOnline = true // Realtime 연결 시 온라인으로 가정
+                Log.d("ChatFragment", "Partner assumed online (using Supabase Realtime)")
+                
+                Log.d("ChatFragment", "✅ Presence tracking setup completed successfully")
+                Log.d("ChatFragment", "👥 <== setupPresenceTracking() completed")
+                
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "❌ ERROR in setupPresenceTracking()", e)
+                Log.e("ChatFragment", "Error type: ${e::class.simpleName}")
+                Log.e("ChatFragment", "Error message: ${e.message}")
+            }
+        }
+    }
+    
     override fun onDestroyView() {
+        Log.d("ChatFragment", "🧹 ==> onDestroyView() called")
+        Log.d("ChatFragment", "Fragment lifecycle: ${lifecycle.currentState}")
+        Log.d("ChatFragment", "Current chatRoomId: $chatRoomId")
+        Log.d("ChatFragment", "Current userId: $currentUserId")
+        
         super.onDestroyView()
+        
+        // Cleanup presence tracking
+        Log.d("ChatFragment", "🧹 Cleaning up presence tracking...")
+        lifecycleScope.launch {
+            try {
+                if (presenceChannel != null) {
+                    Log.d("ChatFragment", "📡 Unsubscribing from presence channel...")
+                    Log.d("ChatFragment", "Presence channel status before cleanup: ${presenceChannel?.status}")
+                    presenceChannel?.unsubscribe()
+                    presenceChannel = null
+                    Log.d("ChatFragment", "✅ Presence channel unsubscribed and cleared")
+                } else {
+                    Log.d("ChatFragment", "ℹ️ No presence channel to cleanup")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "❌ Error cleaning up presence channel", e)
+            }
+        }
+        
+        Log.d("ChatFragment", "ℹ️ Realtime message connections will be cleaned up automatically by lifecycleScope")
+        Log.d("ChatFragment", "Messages list size at cleanup: ${messagesList.size}")
+        
         _binding = null
-        Log.d("ChatFragment", "onDestroyView")
+        Log.d("ChatFragment", "✅ View binding cleared")
+        Log.d("ChatFragment", "🧹 <== onDestroyView() completed")
     }
 }
