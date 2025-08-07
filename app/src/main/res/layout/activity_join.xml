@@ -6,9 +6,22 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
-    android:paddingHorizontal="32dp"
     android:paddingVertical="24dp"
     tools:context=".auth.JoinActivity">
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidelineStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_begin="40dp" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidelineEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_end="40dp" />
 
     <TextView
         android:id="@+id/tvTitle"
@@ -17,9 +30,7 @@
         android:text="회원가입"
         android:textColor="@android:color/black"
         android:textSize="24sp"
-
         app:layout_constraintVertical_bias="0.1"
-
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -47,7 +58,7 @@
         android:textColor="@android:color/black"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="@+id/inputName"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
         app:layout_constraintTop_toTopOf="@+id/inputName" />
 
     <androidx.constraintlayout.widget.Barrier
@@ -62,15 +73,13 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
-
         android:layout_marginTop="96dp"
-
         android:autofillHints="name"
         android:backgroundTint="@android:color/black"
         android:inputType="textPersonName"
         android:maxLines="1"
         android:textColor="@android:color/black"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
         app:layout_constraintStart_toEndOf="@+id/barrierLabels"
         app:layout_constraintTop_toBottomOf="@+id/progressBar" />
 
@@ -82,7 +91,7 @@
         android:textColor="@android:color/black"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="@+id/inputNickname"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
         app:layout_constraintTop_toTopOf="@+id/inputNickname" />
     <EditText
         android:id="@+id/inputNickname"
@@ -95,7 +104,7 @@
         android:inputType="text"
         android:maxLines="1"
         android:textColor="@android:color/black"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
         app:layout_constraintStart_toEndOf="@+id/barrierLabels"
         app:layout_constraintTop_toBottomOf="@+id/inputName" />
 
@@ -107,7 +116,7 @@
         android:textColor="@android:color/black"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="@+id/inputId"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
         app:layout_constraintTop_toTopOf="@+id/inputId" />
     <EditText
         android:id="@+id/inputId"
@@ -119,7 +128,7 @@
         android:inputType="text"
         android:maxLines="1"
         android:textColor="@android:color/black"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
         app:layout_constraintStart_toEndOf="@+id/barrierLabels"
         app:layout_constraintTop_toBottomOf="@+id/inputNickname" />
 
@@ -131,7 +140,7 @@
         android:textColor="@android:color/black"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="@+id/inputPassword"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
         app:layout_constraintTop_toTopOf="@+id/inputPassword" />
     <EditText
         android:id="@+id/inputPassword"
@@ -144,7 +153,7 @@
         android:inputType="textPassword"
         android:maxLines="1"
         android:textColor="@android:color/black"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
         app:layout_constraintStart_toEndOf="@+id/barrierLabels"
         app:layout_constraintTop_toBottomOf="@+id/inputId" />
 
@@ -154,13 +163,13 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="72dp"
         android:backgroundTint="@color/light_gray"
-        android:paddingHorizontal="60dp"
+        android:paddingHorizontal="48dp"
         android:paddingVertical="12dp"
         android:text="등록"
         android:textColor="@color/dark_gray"
         android:textSize="18sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
         app:layout_constraintTop_toBottomOf="@+id/inputPassword" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
