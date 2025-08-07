@@ -7,11 +7,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.lovebug_project.chat.adapter.ChatAdapter
 import com.example.lovebug_project.chat.model.Message
+import com.example.lovebug_project.data.repository.SupabaseChatRepository
+import com.example.lovebug_project.data.supabase.models.Chat
+import com.example.lovebug_project.data.supabase.models.ChatMessage
 import com.example.lovebug_project.databinding.FragmentChatBinding
+import com.example.lovebug_project.utils.AuthHelper
 import com.example.lovebug_project.utils.hideKeyboard
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.format.DateTimeParseException
 
 class ChatFragment : Fragment() {
 
@@ -20,12 +29,28 @@ class ChatFragment : Fragment() {
 
     private lateinit var chatAdapter: ChatAdapter
     private val messagesList = mutableListOf<Message>()
-    private var currentUserId: String = "test_user_id"
-    private var chatRoomId: String = "test_room_id"
+    private var currentUserId: String? = null
+    private var chatRoomId: Int = -1
+    private var otherUserId: String = "demo_user_2" // For demo purposes
+    
+    private val chatRepository = SupabaseChatRepository()
+    private var currentChat: Chat? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d("ChatFragment", "onCreate: currentUserId=$currentUserId, chatRoomId=$chatRoomId")
+        
+        // Get current user ID from AuthHelper
+        currentUserId = AuthHelper.getSupabaseUserId(requireContext())
+        
+        Log.d("ChatFragment", "onCreate: currentUserId=$currentUserId")
+        
+        if (currentUserId == null) {
+            Log.e("ChatFragment", "No authenticated user found!")
+            return
+        }
+        
+        // Initialize chat room
+        initializeChatRoom()
     }
 
     override fun onCreateView(
@@ -39,16 +64,22 @@ class ChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        if (currentUserId == null) {
+            Log.e("ChatFragment", "Cannot setup view without authenticated user")
+            return
+        }
+
         setupRecyclerView()
         setupSendButton()
         setupKeyboardDismissListener()
-        addInitialTestMessages()
+        loadChatHistory()
+        subscribeToRealtimeMessages()
     }
 
     private fun setupRecyclerView() {
         chatAdapter = ChatAdapter(
             messagesList,
-            currentUserId,
+            currentUserId ?: "",
             onMessageDoubleClicked = { messageId -> // 더블 클릭 콜백만 사용
                 Log.d("ChatFragment", "Message double clicked, toggling like for ID: $messageId")
                 handleLikeToggle(messageId)
@@ -65,34 +96,42 @@ class ChatFragment : Fragment() {
     private fun setupSendButton() {
         binding.buttonSend.setOnClickListener {
             val messageText = binding.editTextMessage.text.toString().trim()
-            if (messageText.isNotEmpty()) {
-                sendLocalMessage(messageText)
+            if (messageText.isNotEmpty() && currentUserId != null && chatRoomId != -1) {
+                sendMessage(messageText)
                 binding.editTextMessage.text.clear()
                 binding.editTextMessage.hideKeyboard()
+            } else {
+                Log.w("ChatFragment", "Cannot send message: text empty or chat not initialized")
             }
         }
     }
 
-    private fun sendLocalMessage(text: String) {
-        if (currentUserId.isBlank()) {
-            Log.w("ChatFragment", "Cannot send message, currentUserId is blank (local).")
-            return
+    /**
+     * Send message using Supabase real-time chat
+     */
+    private fun sendMessage(text: String) {
+        val userId = currentUserId ?: return
+        
+        lifecycleScope.launch {
+            try {
+                val sentMessage = chatRepository.sendMessage(chatRoomId, userId, text)
+                if (sentMessage != null) {
+                    Log.d("ChatFragment", "Message sent successfully: ${sentMessage.messageId}")
+                    // Update chat timestamp
+                    chatRepository.updateChatTimestamp(chatRoomId)
+                } else {
+                    Log.e("ChatFragment", "Failed to send message")
+                    // TODO: Show error to user
+                }
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Error sending message", e)
+                // TODO: Show error to user
+            }
         }
-        val newMessage = Message(
-            messageId = "local_${System.currentTimeMillis()}",
-            senderId = currentUserId,
-            text = text,
-            timestamp = System.currentTimeMillis(),
-            chatRoomId = chatRoomId
-        )
-        messagesList.add(newMessage)
-        chatAdapter.notifyItemInserted(messagesList.size - 1)
-        binding.recyclerViewChat.smoothScrollToPosition(chatAdapter.itemCount - 1)
-        Log.d("ChatFragment", "Local message sent: ${newMessage.text}")
     }
 
     private fun handleLikeToggle(messageId: String) {
-        if (currentUserId.isBlank() || messageId.isBlank()) {
+        if (currentUserId.isNullOrBlank() || messageId.isBlank()) {
             Log.w("ChatFragment", "Cannot toggle like: User or Message ID is blank.")
             return
         }
@@ -104,12 +143,13 @@ class ChatFragment : Fragment() {
             message.isLikedByCurrentUser = !message.isLikedByCurrentUser // 상태 반전
 
             // likedBy 리스트와 likeCount는 내부적으로 관리 (UI에는 카운트 미표시)
+            val userId = currentUserId!!
             if (message.isLikedByCurrentUser) {
-                if (!message.likedBy.contains(currentUserId)) {
-                    message.likedBy.add(currentUserId)
+                if (!message.likedBy.contains(userId)) {
+                    message.likedBy.add(userId)
                 }
             } else {
-                message.likedBy.remove(currentUserId)
+                message.likedBy.remove(userId)
             }
             message.likeCount = message.likedBy.size // 이 값은 UI에 직접 사용되진 않음
 
@@ -121,17 +161,104 @@ class ChatFragment : Fragment() {
         }
     }
 
-    private fun addInitialTestMessages() {
-        if (messagesList.isEmpty()) {
-            val testMessages = listOf(
-                Message("local_0", "other_user_test_id", "안녕! (상대방 메시지)", System.currentTimeMillis() - 20000, chatRoomId),
-                Message("local_1", currentUserId, "응 안녕! (내 메시지)", System.currentTimeMillis() - 10000, chatRoomId),
-                Message("local_2", "other_user_test_id", "이 메시지를 더블 클릭 해보세요.", System.currentTimeMillis() - 5000, chatRoomId)
-            )
-            messagesList.addAll(testMessages)
-            chatAdapter.notifyDataSetChanged()
-            binding.recyclerViewChat.scrollToPosition(chatAdapter.itemCount - 1)
+    /**
+     * Initialize or get existing chat room
+     */
+    private fun initializeChatRoom() {
+        val userId = currentUserId ?: return
+        
+        lifecycleScope.launch {
+            try {
+                val chat = chatRepository.createOrGetChatRoom(userId, otherUserId)
+                if (chat != null) {
+                    currentChat = chat
+                    chatRoomId = chat.chatId
+                    Log.d("ChatFragment", "Chat room initialized: ${chat.chatId}")
+                } else {
+                    Log.e("ChatFragment", "Failed to initialize chat room")
+                }
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Error initializing chat room", e)
+            }
         }
+    }
+    
+    /**
+     * Load chat history from Supabase
+     */
+    private fun loadChatHistory() {
+        if (chatRoomId == -1) {
+            Log.w("ChatFragment", "Chat room not initialized, cannot load history")
+            return
+        }
+        
+        lifecycleScope.launch {
+            try {
+                val chatMessages = chatRepository.getChatMessages(chatRoomId)
+                val localMessages = chatMessages.map { it.toLocalMessage() }
+                
+                messagesList.clear()
+                messagesList.addAll(localMessages)
+                chatAdapter.notifyDataSetChanged()
+                
+                if (messagesList.isNotEmpty()) {
+                    binding.recyclerViewChat.scrollToPosition(chatAdapter.itemCount - 1)
+                }
+                
+                Log.d("ChatFragment", "Loaded ${messagesList.size} messages")
+                
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Error loading chat history", e)
+            }
+        }
+    }
+    
+    /**
+     * Subscribe to real-time message updates
+     */
+    private fun subscribeToRealtimeMessages() {
+        if (chatRoomId == -1) {
+            Log.w("ChatFragment", "Chat room not initialized, cannot subscribe to messages")
+            return
+        }
+        
+        lifecycleScope.launch {
+            chatRepository.subscribeToNewMessages(chatRoomId)
+                .catch { error ->
+                    Log.e("ChatFragment", "Error in realtime subscription", error)
+                }
+                .collect { chatMessage ->
+                    val localMessage = chatMessage.toLocalMessage()
+                    
+                    // Only add if not already in list (avoid duplicates)
+                    if (messagesList.none { it.messageId == localMessage.messageId }) {
+                        messagesList.add(localMessage)
+                        chatAdapter.notifyItemInserted(messagesList.size - 1)
+                        binding.recyclerViewChat.smoothScrollToPosition(chatAdapter.itemCount - 1)
+                        
+                        Log.d("ChatFragment", "Received real-time message: ${chatMessage.messageId}")
+                    }
+                }
+        }
+    }
+    
+    /**
+     * Convert ChatMessage (Supabase) to Message (local)
+     */
+    private fun ChatMessage.toLocalMessage(): Message {
+        val timestampMs = try {
+            Instant.parse(this.timestamp).toEpochMilli()
+        } catch (e: DateTimeParseException) {
+            System.currentTimeMillis()
+        }
+        
+        return Message(
+            messageId = this.messageId.toString(),
+            senderId = this.senderId,
+            text = this.message,
+            timestamp = timestampMs,
+            chatRoomId = this.chatId.toString()
+        )
     }
 
     @SuppressLint("ClickableViewAccessibility")
