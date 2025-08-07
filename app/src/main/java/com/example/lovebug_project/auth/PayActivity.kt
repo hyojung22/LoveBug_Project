@@ -60,7 +60,7 @@ class PayActivity : AppCompatActivity() {
             // 버튼 비활성화하여 중복 클릭 방지
             binding.submitBtn.isEnabled = false
             
-            // Supabase에 기본 월별 목표 지출 금액 저장
+            // 로그인된 사용자만 이 화면에 올 수 있으므로 바로 Supabase에 저장
             lifecycleScope.launch {
                 try {
                     val result = MyApplication.authRepository.setDefaultMonthlyBudget(
@@ -69,24 +69,41 @@ class PayActivity : AppCompatActivity() {
                     
                     result.fold(
                         onSuccess = { userInfo ->
-                            // 1. SharedPreferences에도 로컬 저장 (오프라인 대비)
-                            val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                            with (sharedPref.edit()) {
-                                putLong("expense_goal", goalAmount)
-                                apply()
+                            lifecycleScope.launch {
+                                // 1. 초기 설정 완료로 표시
+                                val setupResult = MyApplication.authRepository.setInitialSetupCompleted()
+                                
+                                setupResult.fold(
+                                    onSuccess = {
+                                        // 2. SharedPreferences에도 로컬 저장 (오프라인 대비)
+                                        val sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+                                        with (sharedPref.edit()) {
+                                            putLong("expense_goal", goalAmount)
+                                            apply()
+                                        }
+
+                                        // 3. 저장 완료 토스트 메시지 표시
+                                        Toast.makeText(this@PayActivity, 
+                                            "목표 금액 ${decimalFormat.format(goalAmount)}원이 저장되었습니다.", 
+                                            Toast.LENGTH_SHORT).show()
+
+                                        // 4. WelcomeActivity로 이동할 Intent를 생성하고 실행
+                                        val intent = Intent(this@PayActivity, WelcomeActivity::class.java)
+                                        startActivity(intent)
+
+                                        // 5. 현재 PayActivity를 종료하여 뒤로 가기 버튼으로 돌아오지 않도록 함
+                                        finish()
+                                    },
+                                    onFailure = { setupException ->
+                                        Toast.makeText(this@PayActivity, 
+                                            "초기 설정 저장 중 오류가 발생했습니다: ${setupException.message}", 
+                                            Toast.LENGTH_LONG).show()
+                                        
+                                        // 버튼 다시 활성화
+                                        binding.submitBtn.isEnabled = true
+                                    }
+                                )
                             }
-
-                            // 2. 저장 완료 토스트 메시지 표시
-                            Toast.makeText(this@PayActivity, 
-                                "목표 금액 ${decimalFormat.format(goalAmount)}원이 저장되었습니다.", 
-                                Toast.LENGTH_SHORT).show()
-
-                            // 3. WelcomeActivity로 이동할 Intent를 생성하고 실행
-                            val intent = Intent(this@PayActivity, WelcomeActivity::class.java)
-                            startActivity(intent)
-
-                            // 4. 현재 PayActivity를 종료하여 뒤로 가기 버튼으로 돌아오지 않도록 함
-                            finish()
                         },
                         onFailure = { exception ->
                             Toast.makeText(this@PayActivity, 

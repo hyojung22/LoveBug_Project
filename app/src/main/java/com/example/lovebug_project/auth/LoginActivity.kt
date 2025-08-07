@@ -1,5 +1,6 @@
 package com.example.lovebug_project.auth
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -53,13 +54,28 @@ class LoginActivity : AppCompatActivity() {
                     result.fold(
                         onSuccess = { session: io.github.jan.supabase.auth.user.UserSession ->
                             // 로그인 성공 시 사용자 ID 저장
-                            val sharedPref = getSharedPreferences("user_prefs", MODE_PRIVATE)
-                            sharedPref.edit().putString("supabase_user_id", session.user?.id).apply()
+                            val userPref = getSharedPreferences("user_prefs", MODE_PRIVATE)
+                            val userId = session.user?.id
+                            userPref.edit().putString("supabase_user_id", userId).apply()
                             
-                            // 메인 페이지로 이동
-                            val intent = Intent(this@LoginActivity, MainActivity::class.java)
-                            startActivity(intent)
-                            finish() // 로그인 액티비티 종료
+                            // 서버 측 메타데이터로 초기 설정 완료 여부 확인
+                            val isInitialSetupCompleted = MyApplication.authRepository.isInitialSetupCompleted()
+                            
+                            if (!isInitialSetupCompleted) {
+                                // 초기 설정이 아직 완료되지 않음 - PayActivity로 이동
+                                Toast.makeText(this@LoginActivity, 
+                                    "환영합니다! 월 지출 목표를 설정해주세요.", 
+                                    Toast.LENGTH_SHORT).show()
+                                
+                                val intent = Intent(this@LoginActivity, PayActivity::class.java)
+                                startActivity(intent)
+                                finish()
+                            } else {
+                                // 초기 설정 완료됨 - 바로 메인 페이지로 이동
+                                val intent = Intent(this@LoginActivity, MainActivity::class.java)
+                                startActivity(intent)
+                                finish()
+                            }
                         },
                         onFailure = { exception: Throwable ->
                             // 로그인 실패

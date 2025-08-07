@@ -224,6 +224,31 @@ class SupabaseAuthRepository {
     }
     
     /**
+     * 초기 설정 완료 여부 확인
+     * @return true if initial setup is completed, false otherwise
+     */
+    fun isInitialSetupCompleted(): Boolean {
+        val currentUser = getCurrentUser()
+        return currentUser?.userMetadata?.get("initial_setup_completed")?.toString()?.toBooleanStrictOrNull() ?: false
+    }
+    
+    /**
+     * 초기 설정 완료로 표시
+     */
+    suspend fun setInitialSetupCompleted(): Result<UserInfo> {
+        return try {
+            val result = supabase.auth.updateUser {
+                data = JsonObject(mapOf(
+                    "initial_setup_completed" to JsonPrimitive(true)
+                ))
+            }
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
      * Delete user account
      */
     suspend fun deleteAccount(): Result<Unit> {
