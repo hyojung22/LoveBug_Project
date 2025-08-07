@@ -2,6 +2,7 @@ package com.example.lovebug_project.data.repository
 
 import com.example.lovebug_project.data.supabase.SupabaseClient
 import com.example.lovebug_project.data.supabase.models.Post
+import com.example.lovebug_project.data.supabase.models.Comment
 import com.example.lovebug_project.utils.ErrorReporter
 import com.example.lovebug_project.utils.measureOperation
 import io.github.jan.supabase.postgrest.from
@@ -171,6 +172,150 @@ class SupabasePostRepository {
                 }
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    // ============ 댓글 관련 기능 ============
+    
+    /**
+     * 새 댓글 생성
+     */
+    suspend fun createComment(comment: Comment): Result<Comment> {
+        return measureOperation("createComment") {
+            try {
+                val result = supabase.from("comments")
+                    .insert(comment) {
+                        select()
+                    }
+                    .decodeSingle<Comment>()
+                
+                ErrorReporter.logSuccess(
+                    "createComment", 
+                    "Comment created with ID: ${result.commentId}"
+                )
+                
+                Result.success(result)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "createComment",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to comment.postId,
+                        "userId" to comment.userId,
+                        "contentLength" to comment.content.length
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 특정 게시글의 댓글 목록 조회 (최신순)
+     */
+    suspend fun getCommentsByPostId(postId: Int): Result<List<Comment>> {
+        return measureOperation("getCommentsByPostId") {
+            try {
+                val comments = supabase.from("comments")
+                    .select {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                    .decodeList<Comment>()
+                    .sortedByDescending { it.commentId } // Sort by commentId descending (newest first)
+                
+                ErrorReporter.trackPerformance(
+                    operationName = "getCommentsByPostId",
+                    duration = 0, // measureOperation에서 처리됨
+                    success = true,
+                    recordCount = comments.size
+                )
+                
+                Result.success(comments)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "getCommentsByPostId",
+                    error = e,
+                    context = ErrorReporter.createContext("postId" to postId)
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 댓글 수정
+     */
+    suspend fun updateComment(commentId: Int, content: String): Result<Comment> {
+        return try {
+            val updatedComment = mapOf("content" to content)
+            val result = supabase.from("comments")
+                .update(updatedComment) {
+                    select()
+                    filter {
+                        eq("comment_id", commentId)
+                    }
+                }
+                .decodeSingle<Comment>()
+            Result.success(result)
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError(
+                operation = "updateComment",
+                error = e,
+                context = ErrorReporter.createContext(
+                    "commentId" to commentId,
+                    "contentLength" to content.length
+                )
+            )
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * 댓글 삭제
+     */
+    suspend fun deleteComment(commentId: Int): Result<Unit> {
+        return try {
+            supabase.from("comments")
+                .delete {
+                    filter {
+                        eq("comment_id", commentId)
+                    }
+                }
+            
+            ErrorReporter.logSuccess("deleteComment", "Comment deleted with ID: $commentId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError(
+                operation = "deleteComment",
+                error = e,
+                context = ErrorReporter.createContext("commentId" to commentId)
+            )
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * 특정 게시글의 댓글 개수 조회
+     */
+    suspend fun getCommentCountByPost(postId: Int): Result<Int> {
+        return try {
+            val comments = supabase.from("comments")
+                .select {
+                    filter {
+                        eq("post_id", postId)
+                    }
+                }
+                .decodeList<Comment>()
+            Result.success(comments.size)
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError(
+                operation = "getCommentCountByPost",
+                error = e,
+                context = ErrorReporter.createContext("postId" to postId)
+            )
             Result.failure(e)
         }
     }

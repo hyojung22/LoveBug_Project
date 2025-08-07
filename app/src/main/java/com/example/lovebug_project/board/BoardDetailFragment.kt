@@ -20,12 +20,14 @@ import kotlinx.coroutines.withContext
 import com.bumptech.glide.Glide
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
-import com.example.lovebug_project.data.db.entity.Comment
+import com.example.lovebug_project.data.supabase.models.Comment
 import com.example.lovebug_project.data.db.entity.Like
 import com.example.lovebug_project.data.db.entity.Post
 import com.example.lovebug_project.data.db.entity.PostWithExtras
+import com.example.lovebug_project.utils.AuthHelper
 import com.example.lovebug_project.databinding.FragmentBoardDetailBinding
 import com.example.lovebug_project.databinding.FragmentBoardMainBinding
+import com.example.lovebug_project.utils.loadProfileImage
 
 class BoardDetailFragment : Fragment() {
     // binding 인스턴스를 nullable로 선언
@@ -72,13 +74,12 @@ class BoardDetailFragment : Fragment() {
             }
 
 
-        val currentUserId = requireContext()
-            .getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-            .getInt("userId", -1)
+        // Supabase 사용자 UUID 가져오기
+        val currentUserUuid = AuthHelper.getSupabaseUserId(requireContext())
 
         // 댓글 어댑터 초기화
         commentAdapter = CommentAdapter(
-            currentUserId = currentUserId,
+            currentUserId = currentUserUuid,
             onDeleteClick = { comment -> deleteComment(comment) },
             onUpdateClick = { comment, newContent -> updateComment(comment, newContent) },
             onListChanged = { count ->
@@ -103,26 +104,58 @@ class BoardDetailFragment : Fragment() {
         binding.btnCommentRegister.setOnClickListener {
             val content = binding.etCommentContent.text.toString().trim()
             if (content.isNotEmpty()) {
-                val now = System.currentTimeMillis().toString() // 날짜 포맷은 필요 시 변경
-                // TODO: Implement Supabase comment insertion
-                /*
-                MyApplication.postRepository.insertComment(
-                    Comment(
-                        postId = postExtra.post.postId,
-                        userId = currentUserId,
-                        content = content,
-                        createdAt = now
-                    )
-                )
-                */
-                binding.etCommentContent.text.clear()
-
-                // 🔹 여기서만 호출하면 자동으로 리스트 + 카운트 갱신
-                loadComments(postExtra.post.postId) // UI 즉시 갱신
-
-                // 🔹 마지막 위치로 스크롤
-                binding.rvComment.post {
-                    binding.rvComment.scrollToPosition(commentAdapter.itemCount - 1)
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        // Supabase에서 현재 사용자 UUID 가져오기
+                        val currentUserUuid = AuthHelper.getSupabaseUserId(requireContext())
+                        if (currentUserUuid != null) {
+                            val comment = Comment(
+                                postId = postExtra.post.postId,
+                                userId = currentUserUuid,
+                                content = content
+                            )
+                            
+                            val result = MyApplication.repositoryManager.postRepository.createComment(comment)
+                            
+                            withContext(Dispatchers.Main) {
+                                result.fold(
+                                    onSuccess = {
+                                        binding.etCommentContent.text.clear()
+                                        loadComments(postExtra.post.postId) // UI 즉시 갱신
+                                        
+                                        // 🔹 마지막 위치로 스크롤
+                                        binding.rvComment.post {
+                                            binding.rvComment.scrollToPosition(commentAdapter.itemCount - 1)
+                                        }
+                                    },
+                                    onFailure = { exception ->
+                                        // 에러 처리 - Toast 메시지 표시
+                                        android.widget.Toast.makeText(
+                                            requireContext(), 
+                                            "댓글 등록 실패: ${exception.message}", 
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                android.widget.Toast.makeText(
+                                    requireContext(), 
+                                    "로그인이 필요합니다.", 
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(
+                                requireContext(), 
+                                "댓글 등록 중 오류 발생: ${e.message}", 
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 }
             }
         }
@@ -231,22 +264,10 @@ class BoardDetailFragment : Fragment() {
         }
 
         // 상단 프로필 이미지
-        if (!postExtra.post.image.isNullOrEmpty()) {
-            Glide.with(requireContext())
-                .load(postExtra.post.image)
-                .into(binding.imgProfile)
-        } else {
-            binding.imgProfile.setImageResource(R.drawable.ic_launcher_background)
-        }
+        binding.imgProfile.loadProfileImage(postExtra.profileImage)
 
         // 하단 댓글 입력란 프로필 이미지
-        if (!postExtra.profileImage.isNullOrEmpty()) {
-            Glide.with(requireContext())
-                .load(postExtra.profileImage)
-                .into(binding.imgProfile2)
-        } else {
-            binding.imgProfile2.setImageResource(R.drawable.circle_button)
-        }
+        binding.imgProfile2.loadProfileImage(postExtra.profileImage)
 
     }
 
@@ -257,37 +278,133 @@ class BoardDetailFragment : Fragment() {
     }
 
     private fun loadComments(postId: Int) {
-        // TODO: Implement Supabase comment loading
-        /*
-        val comments = MyApplication.postRepository.getCommentsByPost(postId)
-        commentAdapter.setComments(comments)
-
-        // 🔹 여기서 최신 개수 갱신
-        val count = MyApplication.postRepository.getCommentCountByPost(postId)
-        binding.tvComment.text = count.toString()
-        sendCommentUpdate(count) // 메인 프래그먼트에 반영
-        */
-        
-        // Temporary placeholder
-        val comments = emptyList<Comment>()
-        commentAdapter.setComments(comments)
-        binding.tvComment.text = "0"
-        sendCommentUpdate(0)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Supabase에서 댓글 목록 가져오기
+                val commentsResult = MyApplication.repositoryManager.postRepository.getCommentsByPostId(postId)
+                val countResult = MyApplication.repositoryManager.postRepository.getCommentCountByPost(postId)
+                
+                withContext(Dispatchers.Main) {
+                    commentsResult.fold(
+                        onSuccess = { comments ->
+                            commentAdapter.setComments(comments)
+                            
+                            // 댓글 개수 업데이트
+                            countResult.fold(
+                                onSuccess = { count ->
+                                    binding.tvComment.text = count.toString()
+                                    sendCommentUpdate(count)
+                                },
+                                onFailure = {
+                                    // 개수 조회 실패시 리스트 크기로 대체
+                                    binding.tvComment.text = comments.size.toString()
+                                    sendCommentUpdate(comments.size)
+                                }
+                            )
+                        },
+                        onFailure = { exception ->
+                            // 에러 처리 - 빈 리스트로 설정
+                            commentAdapter.setComments(emptyList())
+                            binding.tvComment.text = "0"
+                            sendCommentUpdate(0)
+                            
+                            android.widget.Toast.makeText(
+                                requireContext(),
+                                "댓글을 불러올 수 없습니다: ${exception.message}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    // 예외 처리
+                    commentAdapter.setComments(emptyList())
+                    binding.tvComment.text = "0"
+                    sendCommentUpdate(0)
+                    
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        "댓글 로딩 중 오류 발생: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun deleteComment(comment: Comment) {
-        // TODO: Implement Supabase comment deletion
-        // MyApplication.postRepository.deleteComment(comment)
-
-        // 댓글 목록 다시 로드
-        loadComments(comment.postId)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val result = MyApplication.repositoryManager.postRepository.deleteComment(comment.commentId)
+                
+                withContext(Dispatchers.Main) {
+                    result.fold(
+                        onSuccess = {
+                            // 댓글 목록 다시 로드
+                            loadComments(comment.postId)
+                            android.widget.Toast.makeText(
+                                requireContext(),
+                                "댓글이 삭제되었습니다.",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        onFailure = { exception ->
+                            android.widget.Toast.makeText(
+                                requireContext(),
+                                "댓글 삭제 실패: ${exception.message}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        "댓글 삭제 중 오류 발생: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun updateComment(comment: Comment, newContent: String) {
-        val updatedAt = System.currentTimeMillis().toString()
-        // TODO: Implement Supabase comment update
-        // MyApplication.postRepository.updateComment(comment.commentId, newContent, updatedAt)
-        loadComments(comment.postId)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val result = MyApplication.repositoryManager.postRepository.updateComment(comment.commentId, newContent)
+                
+                withContext(Dispatchers.Main) {
+                    result.fold(
+                        onSuccess = {
+                            // 댓글 목록 다시 로드
+                            loadComments(comment.postId)
+                            android.widget.Toast.makeText(
+                                requireContext(),
+                                "댓글이 수정되었습니다.",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        onFailure = { exception ->
+                            android.widget.Toast.makeText(
+                                requireContext(),
+                                "댓글 수정 실패: ${exception.message}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        "댓글 수정 중 오류 발생: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     // 💡 메인 프래그먼트로 댓글 개수 전달

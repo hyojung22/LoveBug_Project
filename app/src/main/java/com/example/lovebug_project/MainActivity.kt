@@ -56,6 +56,9 @@ class MainActivity : AppCompatActivity() {
                 frame2.visibility = View.GONE
                 frame.visibility = View.VISIBLE
                 titleBar.visibility = View.GONE
+                
+                // 하단 네비게이션을 Board 탭으로 설정 (게시글 목록으로 돌아가므로)
+                binding.nav.selectedItemId = R.id.btnBoard
             } else {
                 // 기본 동작 (앱 종료)
                 finish()
@@ -63,11 +66,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<View>(R.id.btnBack).setOnClickListener {
+            // 하드웨어 백버튼과 동일한 로직: 이전 Fragment로 복귀
             supportFragmentManager.popBackStack()
-
-            findViewById<View>(R.id.frame2).visibility = View.GONE
-            findViewById<View>(R.id.frame).visibility = View.VISIBLE
-            findViewById<View>(R.id.clTitleBar).visibility = View.GONE
+            
+            // UI를 메인 뷰로 복원
+            resetToMainView()
+            
+            // 하단 네비게이션을 Board 탭으로 설정 (게시글 목록으로 돌아가므로)
+            binding.nav.selectedItemId = R.id.btnBoard
         }
 
         // Intent 처리 - 게시글 작성 후 돌아왔는지 확인
@@ -75,6 +81,9 @@ class MainActivity : AppCompatActivity() {
 
         // 각각의 버튼을 클릭했을 때 해당하는 fragment가 띄워지도록 연결
         binding.nav.setOnItemSelectedListener {
+            // 상세 페이지에서 메인 페이지로 복원
+            resetToMainView()
+            
             // 선택된 버튼을 판단!
             when(it.itemId) {
                 R.id.btnHome -> {
@@ -116,6 +125,16 @@ class MainActivity : AppCompatActivity() {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.frame, HomeFragment()).commit()
         }
+    }
+    
+    /**
+     * UI를 메인 뷰 상태로 복원합니다.
+     * 상세 페이지(frame2)를 숨기고 메인 화면(frame)을 표시하며, 상단 타이틀바를 숨깁니다.
+     */
+    private fun resetToMainView() {
+        findViewById<View>(R.id.frame2).visibility = View.GONE
+        findViewById<View>(R.id.frame).visibility = View.VISIBLE
+        findViewById<View>(R.id.clTitleBar).visibility = View.GONE
     }
 
 }
