@@ -499,15 +499,11 @@ class HomeFragment : Fragment() {
                                     
                                     result.fold(
                                         onSuccess = { userInfo ->
-                                            // 성공 시 로컬 값도 업데이트
+                                            // 성공 시 로컬 값도 업데이트 (현재 월에만 적용)
                                             monthlyBudget = newBudget
                                             
-                                            // SharedPreferences에도 저장 (오프라인 대비)
-                                            val sharedPref = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                                            with (sharedPref.edit()) {
-                                                putLong("expense_goal", newBudget.toLong())
-                                                apply()
-                                            }
+                                            // ❌ SharedPreferences 업데이트 제거
+                                            // 특정 월의 목표는 기본값(expense_goal)과 별개로 관리
                                             
                                             updateExpenseInfo() // UI 업데이트
                                             val formatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
@@ -517,31 +513,17 @@ class HomeFragment : Fragment() {
                                                 Toast.LENGTH_SHORT).show()
                                         },
                                         onFailure = { exception ->
-                                            // 실패 시에도 로컬 값은 업데이트 (오프라인 상황 대비)
-                                            monthlyBudget = newBudget
-                                            val sharedPref = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                                            with (sharedPref.edit()) {
-                                                putLong("expense_goal", newBudget.toLong())
-                                                apply()
-                                            }
-                                            updateExpenseInfo() 
+                                            // 실패 시 오류 메시지만 표시 (로컬 저장 안함)
                                             Toast.makeText(requireContext(), 
-                                                "목표 금액이 로컬에 저장되었습니다. (서버 동기화 실패)", 
-                                                Toast.LENGTH_SHORT).show()
+                                                "목표 금액 저장에 실패했습니다: ${exception.message}", 
+                                                Toast.LENGTH_LONG).show()
                                         }
                                     )
                                 } catch (e: Exception) {
-                                    // 예외 발생 시에도 로컬 값은 업데이트
-                                    monthlyBudget = newBudget
-                                    val sharedPref = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                                    with (sharedPref.edit()) {
-                                        putLong("expense_goal", newBudget.toLong())
-                                        apply()
-                                    }
-                                    updateExpenseInfo()
+                                    // 예외 발생 시 오류 메시지만 표시
                                     Toast.makeText(requireContext(), 
-                                        "목표 금액이 로컬에 저장되었습니다.", 
-                                        Toast.LENGTH_SHORT).show()
+                                        "목표 금액 저장 중 오류가 발생했습니다: ${e.message}", 
+                                        Toast.LENGTH_LONG).show()
                                 }
                             }
                         } else {
@@ -568,28 +550,23 @@ class HomeFragment : Fragment() {
                 val currentYearMonth = currentMonth.toString() // "2025-01" 형식
                 
                 // Supabase에서 현재 월의 목표 지출 금액 가져오기
+                // 이 메소드는 다음 우선순위로 값을 반환:
+                // 1. 특정 월 설정값 2. default 값 3. legacy monthly_budget 4. null
                 val supabaseBudget = MyApplication.authRepository.getMonthlyBudgetForMonth(currentYearMonth)
                 
                 if (supabaseBudget != null && supabaseBudget > 0) {
                     monthlyBudget = supabaseBudget
                 } else {
-                    // Supabase에 값이 없으면 SharedPreferences에서 fallback 시도
+                    // Supabase에 아무 설정도 없는 경우에만 SharedPreferences fallback
                     val sharedPref = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-                    val localBudget = sharedPref.getLong("expense_goal", 100000L).toInt()
-                    monthlyBudget = localBudget
-                    
-                    // 로컬에 값이 있고 기본값이 아니면 Supabase에도 동기화
-                    if (localBudget != 100000) {
-                        // 기본값으로 설정 (다른 월들도 이 값을 사용하도록)
-                        MyApplication.authRepository.setDefaultMonthlyBudget(localBudget)
-                    }
+                    monthlyBudget = sharedPref.getLong("expense_goal", 100000L).toInt()
                 }
                 
                 // UI 업데이트
                 updateExpenseInfo()
                 
             } catch (e: Exception) {
-                // 에러 발생 시 기본값 사용하고 SharedPreferences에서 fallback
+                // 에러 발생 시 SharedPreferences fallback
                 val sharedPref = requireContext().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
                 monthlyBudget = sharedPref.getLong("expense_goal", 100000L).toInt()
                 updateExpenseInfo()
