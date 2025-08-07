@@ -58,7 +58,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:storage-kt")
     implementation("io.github.jan-tennert.supabase:realtime-kt")
-    implementation("io.ktor:ktor-client-android:$ktorVersion")
+    implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
     
     // Required for Supabase Auth session management
     implementation("com.russhwolf:multiplatform-settings:1.1.1")
