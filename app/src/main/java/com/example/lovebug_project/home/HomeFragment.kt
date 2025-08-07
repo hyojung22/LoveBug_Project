@@ -47,10 +47,17 @@ class HomeFragment : Fragment() {
     private val expenseRepository = SupabaseRepositoryManager.expenseRepository
     
     // 데이터베이스에서 로드된 지출 데이터 - 날짜별 총 지출 금액 맵
-    private val expenseData = mutableMapOf<LocalDate, Int>()
+    private val expenseData = mutableMapOf<LocalDate, Double>()
     
     private var monthlyBudget = 100000 // 목표 금액 (기본값)
-    private val currentUserId = "sample-user-id" // 샘플 유저 ID - 실제 앱에서는 Supabase Auth에서 가져와야 함
+    
+    /**
+     * 현재 로그인된 사용자의 ID를 가져옵니다
+     * @return 사용자 ID 또는 null (로그인되지 않은 경우)
+     */
+    private fun getCurrentUserId(): String? {
+        return MyApplication.authRepository.getCurrentUser()?.id
+    }
     
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -100,7 +107,7 @@ class HomeFragment : Fragment() {
                     val expense = expenseData[data.date]
                     if (expense != null) {
                         amountTextView.visibility = View.VISIBLE
-                        amountTextView.text = "${String.format("%,d", expense)}"
+                        amountTextView.text = "${String.format("%,d", expense.toInt())}"
                         
                         // 지출 금액에 따라 배경색 설정
                         when {
@@ -215,8 +222,8 @@ class HomeFragment : Fragment() {
         }.values.sum()
         
         binding.tvTargetAmount.text = String.format("%,d", monthlyBudget)
-        binding.tvTotalExpense.text = String.format("%,d", monthExpenses)
-        binding.tvRemainingAmount.text = String.format("%,d", monthlyBudget - monthExpenses)
+        binding.tvTotalExpense.text = String.format("%,d", monthExpenses.toInt())
+        binding.tvRemainingAmount.text = String.format("%,d", (monthlyBudget - monthExpenses).toInt())
         
         // 월 표시 업데이트
         val formatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
@@ -226,6 +233,16 @@ class HomeFragment : Fragment() {
     private fun loadExpenseDataForCurrentMonth() {
         lifecycleScope.launch {
             try {
+                // 현재 사용자 ID 확인
+                val currentUserId = getCurrentUserId()
+                if (currentUserId == null) {
+                    // 로그인되지 않은 상태 - 데이터 초기화
+                    expenseData.clear()
+                    updateExpenseInfo()
+                    binding.calendarView.notifyCalendarChanged()
+                    return@launch
+                }
+                
                 // Supabase 쿼리를 위한 날짜 범위 계산
                 val startDate = currentMonth.atDay(1).toString() // "2025-08-01"
                 val endDate = currentMonth.atEndOfMonth().toString() // "2025-08-31"

@@ -61,7 +61,7 @@ class ExpenseListAdapter(
             )
             
             // 적절한 포맷으로 금액 설정
-            binding.tvAmount.text = "${String.format("%,d", expense.amount)}원"
+            binding.tvAmount.text = "${String.format("%,.0f", expense.amount)}원"
             
             // 메모 설정 (비어있으면 플레이스홀더 표시)
             binding.tvMemo.text = if (expense.memo.isNullOrEmpty()) {

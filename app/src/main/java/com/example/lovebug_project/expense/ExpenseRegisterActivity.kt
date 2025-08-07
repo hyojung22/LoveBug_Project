@@ -40,7 +40,7 @@ class ExpenseRegisterActivity : AppCompatActivity() {
     private val categoryButtons = mutableListOf<Button>()
 
     // 수정 모드에서 원본 데이터 저장용
-    private var originalAmount: Int? = null
+    private var originalAmount: Double? = null
     private var originalCategory: String? = null
     private var originalMemo: String? = null
 
@@ -271,9 +271,9 @@ class ExpenseRegisterActivity : AppCompatActivity() {
     private fun hasDataChanged(amountText: String, memo: String): Boolean {
         // 금액 비교
         val currentAmount = try {
-            if (amountText.isEmpty()) 0 else amountText.toInt()
+            if (amountText.isEmpty()) 0.0 else amountText.toDouble()
         } catch (e: NumberFormatException) {
-            0
+            0.0
         }
 
         // 원본 데이터와 현재 데이터 비교
@@ -302,14 +302,31 @@ class ExpenseRegisterActivity : AppCompatActivity() {
 
     private fun loadExpenseData(expenseId: Int) {
         lifecycleScope.launch {
-            // Note: This would need a getExpenseById method in SupabaseExpenseRepository
-            // For now, we'll show an error message since the method doesn't exist yet
-            Toast.makeText(
-                this@ExpenseRegisterActivity,
-                "지출 수정 기능이 아직 구현되지 않았습니다.",
-                Toast.LENGTH_SHORT
-            ).show()
-            finish()
+            expenseRepository.getExpenseById(expenseId)
+                .onSuccess { expense ->
+                    // UI에 기존 데이터 설정
+                    binding.etAmount.setText(formatAmountWithComma(expense.amount.toLong()))
+                    binding.etMemo.setText(expense.memo ?: "")
+                    
+                    // 카테고리 선택
+                    val categoryIndex = categories.indexOf(expense.category)
+                    if (categoryIndex != -1) {
+                        selectCategory(categoryIndex)
+                    }
+                    
+                    // 원본 데이터 저장 (변경사항 추적용)
+                    originalAmount = expense.amount
+                    originalCategory = expense.category
+                    originalMemo = expense.memo ?: ""
+                }
+                .onFailure { e ->
+                    Toast.makeText(
+                        this@ExpenseRegisterActivity,
+                        "지출 정보를 불러오는데 실패했습니다: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    finish()
+                }
         }
     }
 
@@ -331,7 +348,7 @@ class ExpenseRegisterActivity : AppCompatActivity() {
         }
 
         try {
-            val amount = amountText.toInt()
+            val amount = amountText.toDouble()
             if (amount <= 0) {
                 Toast.makeText(this, "0보다 큰 금액을 입력해주세요.", Toast.LENGTH_SHORT).show()
                 return
@@ -356,7 +373,7 @@ class ExpenseRegisterActivity : AppCompatActivity() {
         userId: String,
         date: LocalDate,
         category: String,
-        amount: Int,
+        amount: Double,
         memo: String
     ) {
         val expense = Expense(
@@ -367,9 +384,11 @@ class ExpenseRegisterActivity : AppCompatActivity() {
             memo = memo ?: ""
         )
 
+        Log.d("ExpenseRegisterActivity", "Creating expense for userId: $userId, date: $date, amount: $amount")
         lifecycleScope.launch {
             expenseRepository.createExpense(expense)
                 .onSuccess {
+                    Log.d("ExpenseRegisterActivity", "Successfully created expense")
                     Toast.makeText(this@ExpenseRegisterActivity, "지출이 등록되었습니다.", Toast.LENGTH_SHORT).show()
                     finish()
                 }
@@ -380,16 +399,42 @@ class ExpenseRegisterActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateExpense(expenseId: Int, category: String, amount: Int, memo: String) {
-        lifecycleScope.launch {
-            // Note: This would need an updateExpense method with different parameters in SupabaseExpenseRepository
-            // For now, we'll show an error message since the current method signature doesn't match
-            Toast.makeText(
-                this@ExpenseRegisterActivity,
-                "지출 수정 기능이 아직 구현되지 않았습니다.",
-                Toast.LENGTH_SHORT
-            ).show()
+    private fun updateExpense(expenseId: Int, category: String, amount: Double, memo: String) {
+        val currentUser = authRepository.getCurrentUser()
+        if (currentUser == null) {
+            Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
             finish()
+            return
+        }
+
+        selectedDate?.let { date ->
+            val updatedExpense = Expense(
+                expenseId = expenseId,
+                userId = currentUser.id,
+                date = date.toString(),
+                category = category,
+                amount = amount,
+                memo = memo
+            )
+
+            lifecycleScope.launch {
+                expenseRepository.updateExpense(expenseId, updatedExpense)
+                    .onSuccess {
+                        Toast.makeText(
+                            this@ExpenseRegisterActivity,
+                            "지출이 수정되었습니다.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        finish()
+                    }
+                    .onFailure { e ->
+                        Toast.makeText(
+                            this@ExpenseRegisterActivity,
+                            "지출 수정에 실패했습니다: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+            }
         }
     }
 

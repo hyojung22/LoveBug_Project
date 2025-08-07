@@ -3,6 +3,7 @@ package com.example.lovebug_project.expense
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -10,7 +11,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.lovebug_project.data.repository.SupabaseExpenseRepository
 import com.example.lovebug_project.data.supabase.models.Expense
-import com.example.lovebug_project.utils.AuthHelper
+import com.example.lovebug_project.data.repository.SupabaseAuthRepository
 import com.example.lovebug_project.databinding.ActivityExpenseDetailBinding
 import com.example.lovebug_project.expense.adapter.ExpenseListAdapter
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -27,6 +28,7 @@ class ExpenseDetailActivity : AppCompatActivity() {
     private lateinit var binding: ActivityExpenseDetailBinding
     private lateinit var expenseAdapter: ExpenseListAdapter
     private val expenseRepository = SupabaseExpenseRepository()
+    private val authRepository = SupabaseAuthRepository()
     
     private var selectedDate: LocalDate? = null
     private val expenses = mutableListOf<Expense>()
@@ -61,7 +63,8 @@ class ExpenseDetailActivity : AppCompatActivity() {
         }
         
         // 사용자 로그인 상태 확인
-        if (!AuthHelper.isLoggedIn(this)) {
+        val currentUser = authRepository.getCurrentUser()
+        if (currentUser == null) {
             Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
             finish()
             return
@@ -113,9 +116,9 @@ class ExpenseDetailActivity : AppCompatActivity() {
     
     private fun setupFab() {
         binding.fabAddExpense.setOnClickListener {
-            val userId = AuthHelper.getCurrentUserId(this)
             selectedDate?.let { date ->
-                val intent = ExpenseRegisterActivity.newIntent(this, date, userId)
+                // 새 지출 등록이므로 expenseId는 null (기본값)
+                val intent = ExpenseRegisterActivity.newIntent(this, date)
                 startActivity(intent)
             }
         }
@@ -132,8 +135,8 @@ class ExpenseDetailActivity : AppCompatActivity() {
     private fun loadExpenses() {
         selectedDate?.let { date ->
             lifecycleScope.launch {
-                val supabaseUserId = AuthHelper.getSupabaseUserId(this@ExpenseDetailActivity)
-                if (supabaseUserId == null) {
+                val currentUser = authRepository.getCurrentUser()
+                if (currentUser == null) {
                     Toast.makeText(
                         this@ExpenseDetailActivity,
                         "로그인이 필요합니다.",
@@ -142,9 +145,11 @@ class ExpenseDetailActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                expenseRepository.getExpensesByDate(supabaseUserId, date.toString())
+                Log.d("ExpenseDetailActivity", "Loading expenses for userId: ${currentUser.id}, date: ${date}")
+                expenseRepository.getExpensesByDate(currentUser.id, date.toString())
                     .fold(
                         onSuccess = { expenseList ->
+                            Log.d("ExpenseDetailActivity", "Successfully loaded ${expenseList.size} expenses")
                             expenses.clear()
                             expenses.addAll(expenseList)
                             expenseAdapter.notifyDataSetChanged()
@@ -198,7 +203,7 @@ class ExpenseDetailActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // ExpenseRegisterActivity에서 돌아왔을 때 리스트 새로고침
-        if (AuthHelper.isLoggedIn(this)) {
+        if (authRepository.getCurrentUser() != null) {
             loadExpenses()
         }
     }

@@ -11,9 +11,9 @@ import kotlinx.serialization.Serializable
 data class Expense(
     @SerialName("expense_id") val expenseId: Int = 0,
     @SerialName("user_id") val userId: String, // Supabase Auth user UUID
-    val date: String, // "2025-08-06"
+    @SerialName("expense_date") val date: String, // "2025-08-06"
     val category: String, // 예: "식비"
-    val amount: Int,
+    val amount: Double,
     val memo: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )

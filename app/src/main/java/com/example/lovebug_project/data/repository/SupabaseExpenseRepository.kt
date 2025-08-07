@@ -34,7 +34,7 @@ class SupabaseExpenseRepository {
                 .select {
                     filter {
                         eq("user_id", userId)
-                        eq("date", date)
+                        eq("expense_date", date)
                     }
                 }
                 .decodeList<Expense>()
@@ -53,8 +53,8 @@ class SupabaseExpenseRepository {
                 .select {
                     filter {
                         eq("user_id", userId)
-                        gte("date", startDate)
-                        lte("date", endDate)
+                        gte("expense_date", startDate)
+                        lte("expense_date", endDate)
                     }
                 }
                 .decodeList<Expense>()
@@ -75,6 +75,24 @@ class SupabaseExpenseRepository {
                 }
                 .decodeSingle<Expense>()
             Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * ID로 특정 지출 내역 조회
+     */
+    suspend fun getExpenseById(expenseId: Int): Result<Expense> {
+        return try {
+            val expense = supabase.postgrest.from("expenses")
+                .select {
+                    filter {
+                        eq("expense_id", expenseId)
+                    }
+                }
+                .decodeSingle<Expense>()
+            Result.success(expense)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -119,7 +137,7 @@ class SupabaseExpenseRepository {
     /**
      * 카테고리별 지출 합계 조회
      */
-    suspend fun getExpensesByCategory(userId: String): Result<Map<String, Int>> {
+    suspend fun getExpensesByCategory(userId: String): Result<Map<String, Double>> {
         return try {
             val expenses = supabase.postgrest.from("expenses")
                 .select {
