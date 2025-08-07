@@ -58,11 +58,14 @@ class ChatListFragment : Fragment() {
         }
     }
 
-    private fun navigateToChatFragment(chatRoom: ChatRoom) {
+    private fun navigateToChatFragment(chatRoom: ChatRoom, partnerUserId: String? = null) {
         val chatFragment = ChatFragment().apply {
             arguments = Bundle().apply {
                 putString("chatRoomId", chatRoom.roomId) // 채팅방 ID 전달
                 putString("partnerName", chatRoom.partnerName) // 상대방 이름 전달 (선택적)
+                partnerUserId?.let { 
+                    putString("partnerUserId", it) // 상대방 User ID 전달
+                }
             }
         }
 
@@ -85,13 +88,21 @@ class ChatListFragment : Fragment() {
     private fun startChatWithNickname(nickname: String) {
         lifecycleScope.launch {
             try {
-                // TODO: 현재 로그인된 사용자 ID 가져오기 (실제 구현 시 AuthRepository 사용)
-                val currentUserId = "current_user_id" // 임시
+                // 현재 로그인된 사용자 ID 가져오기
+                val currentUserId = chatRepository.getCurrentUserId()
+                
+                if (currentUserId == null) {
+                    Toast.makeText(context, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
                 
                 // 닉네임으로 채팅방 생성 또는 기존 채팅방 가져오기
                 val chat = chatRepository.startChatWithNickname(currentUserId, nickname)
                 
                 if (chat != null) {
+                    // 상대방 user ID 가져오기
+                    val partnerUserId = if (chat.user1Id == currentUserId) chat.user2Id else chat.user1Id
+                    
                     // 성공적으로 채팅방을 생성/가져온 경우
                     val chatRoom = ChatRoom(
                         roomId = chat.chatId.toString(),
@@ -100,7 +111,7 @@ class ChatListFragment : Fragment() {
                         timestamp = System.currentTimeMillis(),
                         partnerProfileImageUrl = null
                     )
-                    navigateToChatFragment(chatRoom)
+                    navigateToChatFragment(chatRoom, partnerUserId)
                 } else {
                     // 실패한 경우
                     Toast.makeText(context, "채팅방 생성에 실패했습니다. 닉네임을 확인해주세요.", Toast.LENGTH_SHORT).show()

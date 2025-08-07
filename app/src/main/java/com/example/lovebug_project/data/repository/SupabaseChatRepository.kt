@@ -2,6 +2,7 @@ package com.example.lovebug_project.data.repository
 
 import com.example.lovebug_project.data.supabase.SupabaseClient
 import com.example.lovebug_project.data.supabase.models.Chat
+import io.github.jan.supabase.auth.auth
 import com.example.lovebug_project.data.supabase.models.ChatMessage
 import com.example.lovebug_project.data.supabase.models.ChatRoomInfo
 import com.example.lovebug_project.data.supabase.models.ChatUserSearchResult
@@ -25,6 +26,34 @@ class SupabaseChatRepository {
     
     private val supabase = SupabaseClient.client
     private val realtime = supabase.realtime
+    
+    /**
+     * Ensure realtime connection is established
+     * @return true if connection successful, false otherwise
+     */
+    suspend fun ensureRealtimeConnection(): Boolean {
+        return try {
+            realtime.connect()
+            ErrorReporter.logSuccess("RealtimeConnection", "WebSocket connection established")
+            true
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError("RealtimeConnection", e)
+            false
+        }
+    }
+    
+    /**
+     * Get current authenticated user ID
+     * @return Current user ID or null if not authenticated
+     */
+    fun getCurrentUserId(): String? {
+        return try {
+            supabase.auth.currentUserOrNull()?.id
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError("GetCurrentUserId", e)
+            null
+        }
+    }
     
     /**
      * Create or get existing chat room between two users
@@ -137,11 +166,20 @@ class SupabaseChatRepository {
      * @param chatId Chat room ID to subscribe to
      * @return Flow of new chat messages
      */
-    fun subscribeToNewMessages(chatId: Int): Flow<ChatMessage> {
-        return realtime.channel("chat-messages-$chatId")
-            .postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
-                table = "chat_messages"
-            }
+    suspend fun subscribeToNewMessages(chatId: Int): Flow<ChatMessage> {
+        // Ensure realtime connection is established
+        if (!ensureRealtimeConnection()) {
+            throw Exception("Failed to establish realtime connection")
+        }
+        
+        val channel = realtime.channel("chat-messages-$chatId")
+        val flow = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+            table = "chat_messages"
+        }
+        
+        // Channel will be automatically joined when collecting the flow
+        
+        return flow
             .filter { action ->
                 // Filter for messages in this specific chat
                 try {
@@ -173,11 +211,20 @@ class SupabaseChatRepository {
      * @param chatId Chat room ID
      * @return Flow of chat message change events
      */
-    fun subscribeToAllMessageChanges(chatId: Int): Flow<ChatMessageChangeEvent> {
-        return realtime.channel("chat-all-changes-$chatId")
-            .postgresChangeFlow<PostgresAction>(schema = "public") {
-                table = "chat_messages"
-            }
+    suspend fun subscribeToAllMessageChanges(chatId: Int): Flow<ChatMessageChangeEvent> {
+        // Ensure realtime connection is established
+        if (!ensureRealtimeConnection()) {
+            throw Exception("Failed to establish realtime connection")
+        }
+        
+        val channel = realtime.channel("chat-all-changes-$chatId")
+        val flow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "chat_messages"
+        }
+        
+        // Channel will be automatically joined when collecting the flow
+        
+        return flow
             .filter { action ->
                 // Filter for messages in this specific chat
                 try {

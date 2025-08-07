@@ -31,7 +31,7 @@ class ChatFragment : Fragment() {
     private val messagesList = mutableListOf<Message>()
     private var currentUserId: String? = null
     private var chatRoomId: Int = -1
-    private var otherUserId: String = "demo_user_2" // For demo purposes
+    private var otherUserId: String? = null
     
     private val chatRepository = SupabaseChatRepository()
     private var currentChat: Chat? = null
@@ -42,10 +42,18 @@ class ChatFragment : Fragment() {
         // Get current user ID from AuthHelper
         currentUserId = AuthHelper.getSupabaseUserId(requireContext())
         
-        Log.d("ChatFragment", "onCreate: currentUserId=$currentUserId")
+        // Get partner user ID from arguments
+        otherUserId = arguments?.getString("partnerUserId")
+        
+        Log.d("ChatFragment", "onCreate: currentUserId=$currentUserId, otherUserId=$otherUserId")
         
         if (currentUserId == null) {
             Log.e("ChatFragment", "No authenticated user found!")
+            return
+        }
+        
+        if (otherUserId == null) {
+            Log.e("ChatFragment", "No partner user ID provided!")
             return
         }
         
@@ -64,16 +72,15 @@ class ChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        if (currentUserId == null) {
-            Log.e("ChatFragment", "Cannot setup view without authenticated user")
+        if (currentUserId == null || otherUserId == null) {
+            Log.e("ChatFragment", "Cannot setup view without authenticated user or partner user ID")
             return
         }
 
         setupRecyclerView()
         setupSendButton()
         setupKeyboardDismissListener()
-        loadChatHistory()
-        subscribeToRealtimeMessages()
+        // Note: loadChatHistory() and subscribeToRealtimeMessages() will be called after chat room is initialized
     }
 
     private fun setupRecyclerView() {
@@ -166,14 +173,19 @@ class ChatFragment : Fragment() {
      */
     private fun initializeChatRoom() {
         val userId = currentUserId ?: return
+        val partnerId = otherUserId ?: return
         
         lifecycleScope.launch {
             try {
-                val chat = chatRepository.createOrGetChatRoom(userId, otherUserId)
+                val chat = chatRepository.createOrGetChatRoom(userId, partnerId)
                 if (chat != null) {
                     currentChat = chat
                     chatRoomId = chat.chatId
                     Log.d("ChatFragment", "Chat room initialized: ${chat.chatId}")
+                    
+                    // Now that chat room is initialized, load history and subscribe to realtime messages
+                    loadChatHistory()
+                    subscribeToRealtimeMessages()
                 } else {
                     Log.e("ChatFragment", "Failed to initialize chat room")
                 }
@@ -223,22 +235,27 @@ class ChatFragment : Fragment() {
         }
         
         lifecycleScope.launch {
-            chatRepository.subscribeToNewMessages(chatRoomId)
-                .catch { error ->
-                    Log.e("ChatFragment", "Error in realtime subscription", error)
-                }
-                .collect { chatMessage ->
-                    val localMessage = chatMessage.toLocalMessage()
-                    
-                    // Only add if not already in list (avoid duplicates)
-                    if (messagesList.none { it.messageId == localMessage.messageId }) {
-                        messagesList.add(localMessage)
-                        chatAdapter.notifyItemInserted(messagesList.size - 1)
-                        binding.recyclerViewChat.smoothScrollToPosition(chatAdapter.itemCount - 1)
-                        
-                        Log.d("ChatFragment", "Received real-time message: ${chatMessage.messageId}")
+            try {
+                val messageFlow = chatRepository.subscribeToNewMessages(chatRoomId)
+                messageFlow
+                    .catch { error ->
+                        Log.e("ChatFragment", "Error in realtime subscription", error)
                     }
-                }
+                    .collect { chatMessage ->
+                        val localMessage = chatMessage.toLocalMessage()
+                        
+                        // Only add if not already in list (avoid duplicates)
+                        if (messagesList.none { it.messageId == localMessage.messageId }) {
+                            messagesList.add(localMessage)
+                            chatAdapter.notifyItemInserted(messagesList.size - 1)
+                            binding.recyclerViewChat.smoothScrollToPosition(chatAdapter.itemCount - 1)
+                            
+                            Log.d("ChatFragment", "Received real-time message: ${chatMessage.messageId}")
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Failed to establish realtime subscription", e)
+            }
         }
     }
     
