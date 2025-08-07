@@ -19,7 +19,10 @@
       "Bash(find:*)",
       "Bash(.gradlew.bat build)",
       "Bash(.gradlew assembleDebug)",
-      "Bash(.gradlew.bat assembleDebug)"
+      "Bash(.gradlew.bat assembleDebug)",
+      "Bash(dir)",
+      "Bash(cmd.exe /c gradlew.bat assembleDebug)",
+      "Bash(cmd.exe:*)"
     ],
     "deny": []
   }

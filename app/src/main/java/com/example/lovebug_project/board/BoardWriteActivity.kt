@@ -140,6 +140,13 @@ class BoardWriteActivity : AppCompatActivity() {
     private suspend fun uploadImageToSupabase(imageUri: Uri, userId: String): String? {
         return try {
             val repositoryManager = MyApplication.repositoryManager
+            
+            // 버킷 초기화 및 존재 확인
+            val initResult = repositoryManager.imageRepository.initializeBucket()
+            if (initResult.isFailure) {
+                Toast.makeText(this, "버킷 초기화 실패: ${initResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            }
+            
             val result = repositoryManager.imageRepository.uploadPostImage(
                 context = this,
                 imageUri = imageUri,

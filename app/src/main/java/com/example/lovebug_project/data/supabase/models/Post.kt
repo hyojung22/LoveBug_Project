@@ -13,7 +13,7 @@ data class Post(
     @SerialName("user_id") val userId: String, // Supabase Auth user UUID
     val title: String,
     val content: String,
-    val image: String? = null, // 게시글 이미지 URL
+    @SerialName("image_url") val image: String? = null, // 게시글 이미지 URL
     @SerialName("created_at") val createdAt: String, // ISO timestamp
     @SerialName("updated_at") val updatedAt: String? = null
 )

@@ -19,7 +19,7 @@ class SupabaseImageRepository {
     private val storage = supabase.storage
     
     companion object {
-        private const val BUCKET_NAME = "post-images"
+        private const val BUCKET_NAME = "images"
         private const val MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
     }
     
@@ -147,11 +147,15 @@ class SupabaseImageRepository {
     suspend fun initializeBucket(): Result<Unit> {
         return measureOperation("initializeBucket") {
             try {
-                // Check if bucket exists, create if not
-                // This would typically be done in Supabase dashboard
-                // or through admin API
+                // Try to create bucket - will fail if it already exists, which is fine
+                try {
+                    storage.createBucket(BUCKET_NAME)
+                    ErrorReporter.logSuccess("initializeBucket", "Bucket '$BUCKET_NAME' created successfully")
+                } catch (e: Exception) {
+                    // Bucket likely already exists or creation failed
+                    ErrorReporter.logSuccess("initializeBucket", "Bucket '$BUCKET_NAME' already exists or creation failed: ${e.message}")
+                }
                 
-                ErrorReporter.logSuccess("initializeBucket", "Bucket check completed")
                 Result.success(Unit)
                 
             } catch (e: Exception) {
