@@ -124,40 +124,102 @@ class BoardMainFragment : Fragment() {
 
         loadPostFromDB()
 
-        // 검색 버튼 클릭 시 필터링 처리
+        // 검색 버튼 클릭 시 DB 검색 처리
         btnSearch.setOnClickListener {
             val keyword = etSearch.text.toString().trim()
             val filterByTitle = checkTitle.isChecked
             val filterByContent = checkContent.isChecked
-
-            val filteredList = fullPostList.filter { postWithExtras ->
-                val title = postWithExtras.post.title
-                val content = postWithExtras.post.content
-
-                when {
-                    // 제목 or 내용 체크된 경우
-                    filterByTitle || filterByContent -> {
-                        val matchTitle = filterByTitle && title.contains(keyword, ignoreCase = true)
-                        val matchContent = filterByContent && content.contains(keyword, ignoreCase = true)
-                        matchTitle || matchContent
-                    }
-
-                    // 체크박스 둘 다 선택 안된 경우 → 제목만 필터링
-                    else -> {
-                        title.contains(keyword, ignoreCase = true)
-                    }
-                }
+            
+            if (keyword.isEmpty()) {
+                // 빈 검색어일 때는 전체 게시글 로드
+                loadPostFromDB()
+                return@setOnClickListener
             }
 
-            // 결과 표시
-            if (filteredList.isEmpty()) {
-                boardAdapter.setPosts(emptyList())
-                binding.rvBoard.visibility = View.GONE
-                binding.tvNoBoard.visibility = View.VISIBLE
-            } else {
-                boardAdapter.setPosts(filteredList)
-                binding.rvBoard.visibility = View.VISIBLE
-                binding.tvNoBoard.visibility = View.GONE
+            // DB에서 검색 수행
+            lifecycleScope.launch {
+                try {
+                    val repositoryManager = MyApplication.repositoryManager
+                    val result = repositoryManager.cachedPostRepository.searchPostsWithProfiles(
+                        keyword = keyword,
+                        searchInTitle = filterByTitle,
+                        searchInContent = filterByContent,
+                        limit = 100, // 검색 시에는 더 많은 결과를 보여줄 수 있도록
+                        offset = 0,
+                        forceRefresh = false // 검색 결과는 캐시 활용
+                    )
+                    
+                    result.fold(
+                        onSuccess = { postsWithProfiles ->
+                            // Get current user info to extract nickname
+                            val currentUserInfo = AuthHelper.getCurrentUserInfo()
+                            val currentUserId = AuthHelper.getSupabaseUserId(requireContext())
+                            val currentUserNickname = currentUserInfo?.userMetadata?.get("nickname")?.let {
+                                if (it is JsonPrimitive && it.isString) it.content else "내 게시글"
+                            } ?: "내 게시글"
+                            
+                            // Convert PostWithProfile to PostWithExtras
+                            val searchResults = postsWithProfiles.map { postWithProfile ->
+                                val displayNickname = if (postWithProfile.userId == currentUserId) {
+                                    currentUserNickname
+                                } else {
+                                    postWithProfile.nickname ?: "알 수 없는 사용자"
+                                }
+                                
+                                PostWithExtras(
+                                    post = com.example.lovebug_project.data.db.entity.Post(
+                                        postId = postWithProfile.postId,
+                                        userId = postWithProfile.userId.hashCode(),
+                                        title = postWithProfile.title,
+                                        content = postWithProfile.content,
+                                        image = postWithProfile.imageUrl,
+                                        createdAt = postWithProfile.createdAt
+                                    ),
+                                    nickname = displayNickname,
+                                    profileImage = postWithProfile.avatarUrl,
+                                    likeCount = 0,
+                                    commentCount = 0,
+                                    isLiked = false,
+                                    isBookmarked = false
+                                )
+                            }
+                            
+                            // UI 업데이트는 메인 스레드에서 수행
+                            withContext(Dispatchers.Main) {
+                                boardAdapter.setPosts(searchResults)
+                                fullPostList.clear()
+                                fullPostList.addAll(searchResults) // 검색 결과를 fullPostList에 저장
+
+                                if (searchResults.isEmpty()) {
+                                    binding.rvBoard.visibility = View.GONE
+                                    binding.tvNoBoard.visibility = View.VISIBLE
+                                } else {
+                                    binding.rvBoard.visibility = View.VISIBLE
+                                    binding.tvNoBoard.visibility = View.GONE
+                                }
+                            }
+                        },
+                        onFailure = { exception ->
+                            exception.printStackTrace()
+                            withContext(Dispatchers.Main) {
+                                // 검색 실패 시 빈 결과 표시
+                                boardAdapter.setPosts(emptyList())
+                                fullPostList.clear()
+                                binding.rvBoard.visibility = View.GONE
+                                binding.tvNoBoard.visibility = View.VISIBLE
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        // 에러 시 빈 결과 표시
+                        boardAdapter.setPosts(emptyList())
+                        fullPostList.clear()
+                        binding.rvBoard.visibility = View.GONE
+                        binding.tvNoBoard.visibility = View.VISIBLE
+                    }
+                }
             }
         }
 

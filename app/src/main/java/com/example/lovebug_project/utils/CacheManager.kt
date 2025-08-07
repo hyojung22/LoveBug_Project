@@ -218,6 +218,15 @@ object CacheKeys {
     fun userPosts(userId: String) = "user_posts_$userId"
     fun postsCount() = "posts_count"
     
+    // Search-specific keys
+    fun searchPosts(
+        keyword: String, 
+        searchInTitle: Boolean, 
+        searchInContent: Boolean, 
+        limit: Int, 
+        offset: Int
+    ) = "search_posts_${keyword.hashCode()}_${searchInTitle}_${searchInContent}_${limit}_$offset"
+    
     // User-specific keys
     fun userProfile(userId: String) = "user_profile_$userId"
     fun userExpenses(userId: String) = "user_expenses_$userId"

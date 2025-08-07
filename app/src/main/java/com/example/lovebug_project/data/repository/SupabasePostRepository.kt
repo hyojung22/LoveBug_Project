@@ -132,6 +132,99 @@ class SupabasePostRepository {
             }
         }
     }
+
+    /**
+     * 키워드로 게시글 검색 (제목, 내용 또는 둘 다)
+     */
+    suspend fun searchPostsWithProfiles(
+        keyword: String,
+        searchInTitle: Boolean = true,
+        searchInContent: Boolean = false,
+        limitCount: Int = 50,
+        offset: Int = 0
+    ): Result<List<PostWithProfile>> {
+        return measureOperation("searchPostsWithProfiles") {
+            try {
+                if (keyword.isBlank()) {
+                    return@measureOperation getAllPostsWithProfiles(limitCount, offset)
+                }
+
+                val searchPattern = "%${keyword}%"
+
+                // 검색 조건에 따라 필터 구성
+                val posts = supabase.from("posts")
+                    .select {
+                        limit(limitCount.toLong())
+                        range(offset.toLong(), (offset + limitCount - 1).toLong())
+                        filter {
+                            when {
+                                searchInTitle && searchInContent -> {
+                                    or {
+                                        ilike("title", searchPattern)
+                                        ilike("content", searchPattern)
+                                    }
+                                }
+                                searchInTitle -> {
+                                    ilike("title", searchPattern)
+                                }
+                                searchInContent -> {
+                                    ilike("content", searchPattern)
+                                }
+                                else -> {
+                                    // 기본적으로 제목에서 검색
+                                    ilike("title", searchPattern)
+                                }
+                            }
+                        }
+                    }
+                    .decodeList<Post>()
+                    .sortedByDescending { it.postId }
+
+                // 각 게시글의 작성자 프로필 정보를 병렬로 가져옵니다
+                val postsWithProfiles = coroutineScope {
+                    posts.map { post ->
+                        async {
+                            val userProfile = userRepository.getUserProfile(post.userId)
+                            PostWithProfile(
+                                postId = post.postId,
+                                userId = post.userId,
+                                title = post.title,
+                                content = post.content,
+                                imageUrl = post.image,
+                                imagePath = null,
+                                createdAt = post.createdAt,
+                                updatedAt = post.updatedAt,
+                                nickname = userProfile?.nickname ?: "알 수 없는 사용자",
+                                avatarUrl = userProfile?.avatarUrl
+                            )
+                        }
+                    }.awaitAll()
+                }
+
+                ErrorReporter.trackPerformance(
+                    operationName = "searchPostsWithProfiles",
+                    duration = 0,
+                    success = true,
+                    recordCount = postsWithProfiles.size
+                )
+
+                Result.success(postsWithProfiles)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "searchPostsWithProfiles",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "keyword" to keyword,
+                        "searchInTitle" to searchInTitle,
+                        "searchInContent" to searchInContent,
+                        "limit" to limitCount,
+                        "offset" to offset
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
     
     /**
      * 특정 사용자의 게시글 조회

@@ -246,6 +246,62 @@ class CachedPostRepository(context: Context) {
     }
     
     /**
+     * Search posts with profiles and caching
+     */
+    suspend fun searchPostsWithProfiles(
+        keyword: String,
+        searchInTitle: Boolean = true,
+        searchInContent: Boolean = false,
+        limit: Int = 50,
+        offset: Int = 0,
+        forceRefresh: Boolean = false
+    ): Result<List<PostWithProfile>> {
+        val cacheKey = CacheKeys.searchPosts(keyword, searchInTitle, searchInContent, limit, offset)
+        
+        return if (forceRefresh || keyword.isBlank()) {
+            // Force refresh or empty keyword - don't cache empty searches
+            val result = supabaseRepo.searchPostsWithProfiles(
+                keyword, searchInTitle, searchInContent, limit, offset
+            )
+            if (result.isSuccess && keyword.isNotBlank()) {
+                result.getOrNull()?.let { posts ->
+                    cache.put(cacheKey, posts, POSTS_CACHE_TTL)
+                }
+            }
+            result
+        } else {
+            try {
+                // Cache search results for better user experience
+                val cachedPosts = cache.getOrPut(cacheKey, POSTS_CACHE_TTL) {
+                    val networkResult = supabaseRepo.searchPostsWithProfiles(
+                        keyword, searchInTitle, searchInContent, limit, offset
+                    )
+                    if (networkResult.isFailure) {
+                        throw networkResult.exceptionOrNull() 
+                            ?: Exception("Failed to search posts from network")
+                    }
+                    networkResult.getOrThrow()
+                }
+                Result.success(cachedPosts)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    "searchPostsWithProfiles-Cached",
+                    e,
+                    ErrorReporter.createContext(
+                        "keyword" to keyword,
+                        "searchInTitle" to searchInTitle,
+                        "searchInContent" to searchInContent,
+                        "limit" to limit,
+                        "offset" to offset,
+                        "forceRefresh" to forceRefresh
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
      * Get posts count with caching
      */
     suspend fun getPostsCount(forceRefresh: Boolean = false): Result<Long> {
