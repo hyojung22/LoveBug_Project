@@ -5,17 +5,19 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFD200"
     tools:context=".SplashActivity">
 
-
+    <!-- 이 ImageView가 랜덤 이미지를 보여줄 전체 화면 공간입니다. -->
     <ImageView
-        android:id="@+id/imageView3"
-        android:layout_width="441dp"
-        android:layout_height="730dp"
-        android:background="#FDC90E"
-        app:srcCompat="@drawable/logo2"
-        tools:layout_editor_absoluteX="-15dp"
-        tools:layout_editor_absoluteY="0dp" />
+        android:id="@+id/splashImageView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:srcCompat="@drawable/splash1" />
+    <!-- tools:srcCompat는 개발 중에만 보이는 미리보기 이미지입니다. -->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

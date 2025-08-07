@@ -59,7 +59,7 @@ class SavingPerformFragment : Fragment() {
             currentCalendar.add(Calendar.MONTH, 1)
             updateDateText()
         }
-        binding.imageView3.setOnClickListener {
+        binding.ivSp.setOnClickListener {
             currentCalendar.add(Calendar.MONTH, -1)
             updateDateText()
         }

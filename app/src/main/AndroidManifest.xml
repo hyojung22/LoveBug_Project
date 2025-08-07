@@ -22,8 +22,9 @@
             android:name=".auth.WelcomeActivity"
             android:exported="false" />
         <activity
-            android:name=".auth.JoinActivity"
-            android:exported="false" />
+            android:name=".MainActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".auth.JoinActivity"
             android:exported="false"

@@ -22,7 +22,7 @@
             android:textSize="24sp"
             android:layout_marginHorizontal="24dp"
             app:layout_constraintEnd_toStartOf="@+id/imageView2"
-            app:layout_constraintStart_toEndOf="@+id/imageView3"
+            app:layout_constraintStart_toEndOf="@+id/ivSp"
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
@@ -36,7 +36,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/date" />
 
         <ImageView
-            android:id="@+id/imageView3"
+            android:id="@+id/ivSp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/back"
