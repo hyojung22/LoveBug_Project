@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.ImageView
+import com.bumptech.glide.Glide
+import com.example.lovebug_project.R
 
 fun View.hideKeyboard() {
     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -16,4 +19,18 @@ fun Activity.hideKeyboardActivity() { // 함수 이름 충돌 방지를 위해 �
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(it.windowToken, 0)
     }
+}
+
+/**
+ * ImageView에 프로필 이미지를 로드하는 확장 함수
+ * profileImageUrl이 null이거나 빈 문자열인 경우 기본 프로필 이미지를 사용
+ * 로딩 실패 시에도 기본 프로필 이미지로 fallback
+ */
+fun ImageView.loadProfileImage(profileImageUrl: String?) {
+    Glide.with(context)
+        .load(profileImageUrl.takeIf { !it.isNullOrBlank() } ?: R.drawable.default_profile_image)
+        .placeholder(R.drawable.default_profile_image)
+        .error(R.drawable.default_profile_image)
+        .centerCrop()
+        .into(this)
 }

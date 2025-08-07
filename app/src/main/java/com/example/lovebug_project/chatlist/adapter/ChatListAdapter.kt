@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.lovebug_project.R
 import com.example.lovebug_project.chatlist.model.ChatRoom
 import com.example.lovebug_project.databinding.ItemChatRoomBinding // ViewBinding 사용
+import com.example.lovebug_project.utils.loadProfileImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,12 +41,9 @@ class ChatListAdapter(
             binding.textViewPartnerName.text = chatRoom.partnerName
             binding.textViewLastMessage.text = chatRoom.lastMessage ?: "아직 대화가 없습니다."
             binding.textViewTimestamp.text = formatTimestamp(chatRoom.timestamp)
-            // TODO: Glide나 Coil 같은 라이브러리로 프로필 이미지 로드
-            // if (chatRoom.partnerProfileImageUrl != null) {
-            //     Glide.with(binding.imageViewProfile.context).load(chatRoom.partnerProfileImageUrl).into(binding.imageViewProfile)
-            // } else {
-            //     binding.imageViewProfile.setImageResource(R.mipmap.ic_launcher_round) // 기본 이미지
-            // }
+            
+            // 프로필 이미지 로딩
+            binding.imageViewProfile.loadProfileImage(chatRoom.partnerProfileImageUrl)
 
             binding.root.setOnClickListener {
                 onItemClicked(chatRoom)

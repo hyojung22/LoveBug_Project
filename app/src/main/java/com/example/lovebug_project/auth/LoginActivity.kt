@@ -64,7 +64,7 @@ class LoginActivity : AppCompatActivity() {
                         onFailure = { exception: Throwable ->
                             // 로그인 실패
                             Log.e("LoginActivity", "Login failed", exception)
-                            Toast.makeText(this@LoginActivity, "존재하지 않는 아이디이거나 비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show()
+                            handleSignInError(exception)
                         }
                     )
                 } catch (e: Exception) {
@@ -81,6 +81,25 @@ class LoginActivity : AppCompatActivity() {
             // startActivity() 메소드에 intent를 전달하여 새로운 액티비티를 시작합니다.
             startActivity(intent)
         }
+    }
 
+    private fun handleSignInError(exception: Throwable) {
+        val errorMessage = when {
+            exception.message?.contains("Invalid login credentials", ignoreCase = true) == true ||
+            exception.message?.contains("invalid", ignoreCase = true) == true -> 
+                "이메일 또는 비밀번호가 일치하지 않습니다."
+            exception.message?.contains("Email not confirmed", ignoreCase = true) == true ||
+            exception.message?.contains("email_not_confirmed", ignoreCase = true) == true -> 
+                "이메일 인증이 완료되지 않았습니다.\n이메일의 인증 링크를 클릭해주세요."
+            exception.message?.contains("Too many requests", ignoreCase = true) == true -> 
+                "너무 많은 로그인 시도가 있었습니다.\n잠시 후 다시 시도해주세요."
+            exception.message?.contains("network", ignoreCase = true) == true -> 
+                "네트워크 연결을 확인해주세요."
+            exception.message?.contains("User not found", ignoreCase = true) == true -> 
+                "등록되지 않은 이메일입니다."
+            else -> 
+                "로그인 중 오류가 발생했습니다.\n이메일과 비밀번호를 확인해주세요."
+        }
+        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
     }
 }

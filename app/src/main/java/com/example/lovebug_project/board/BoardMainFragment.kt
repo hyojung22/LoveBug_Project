@@ -20,6 +20,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.lovebug_project.utils.AuthHelper
+import kotlinx.serialization.json.JsonPrimitive
 
 class BoardMainFragment : Fragment() {
 
@@ -215,8 +217,22 @@ class BoardMainFragment : Fragment() {
                 
                 result.fold(
                     onSuccess = { supabasePosts ->
+                        // Get current user info to extract nickname
+                        val currentUserInfo = AuthHelper.getCurrentUserInfo()
+                        val currentUserId = AuthHelper.getSupabaseUserId(requireContext())
+                        val currentUserNickname = currentUserInfo?.userMetadata?.get("nickname")?.let {
+                            if (it is JsonPrimitive && it.isString) it.content else "내 게시글"
+                        } ?: "내 게시글"
+                        
                         // Convert Supabase Posts to PostWithExtras and sort by postId descending (newest first)
                         val postWithExtrasList = supabasePosts.map { supabasePost ->
+                            // Determine nickname based on whether it's current user's post or not
+                            val displayNickname = if (supabasePost.userId == currentUserId) {
+                                currentUserNickname
+                            } else {
+                                "다른 사용자"
+                            }
+                            
                             // Create PostWithExtras with Room Post entity
                             PostWithExtras(
                                 post = com.example.lovebug_project.data.db.entity.Post(
@@ -227,7 +243,7 @@ class BoardMainFragment : Fragment() {
                                     image = supabasePost.image,
                                     createdAt = supabasePost.createdAt
                                 ),
-                                nickname = "User", // Default nickname for now
+                                nickname = displayNickname,
                                 profileImage = null,
                                 likeCount = 0, // Default values - will be fetched separately later
                                 commentCount = 0,

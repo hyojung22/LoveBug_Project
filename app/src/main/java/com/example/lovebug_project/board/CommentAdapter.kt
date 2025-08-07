@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.db.entity.Comment
+import com.example.lovebug_project.utils.loadProfileImage
 
 class CommentAdapter(
     private val currentUserId: Int, // 현재 로그인한 사용자 ID
@@ -58,8 +59,8 @@ class CommentAdapter(
         // 닉네임 - temporary placeholder
         holder.tvNick.text = "사용자"
 
-        // 프로필 이미지 - temporary placeholder
-        holder.imgProfile.setImageResource(R.drawable.circle_button)
+        // 프로필 이미지 - temporary placeholder (TODO: 사용자 정보 조회 시 실제 프로필 이미지 URL 사용)
+        holder.imgProfile.loadProfileImage(null)
 
         // 댓글 내용, 시간
         holder.tvCommentContent.text = comment.content

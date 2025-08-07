@@ -17,6 +17,7 @@ import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.db.entity.Like
 import com.example.lovebug_project.data.db.entity.Post
 import com.example.lovebug_project.data.db.entity.PostWithExtras
+import com.example.lovebug_project.utils.loadProfileImage
 
 class BoardAdapter(
     private val onItemClick: (PostWithExtras) -> Unit
@@ -66,6 +67,9 @@ class BoardAdapter(
         holder.tvNick.text = postExtra.nickname
         holder.tvLike.text = postExtra.likeCount.toString()
         holder.tvComment.text = postExtra.commentCount.toString()
+        
+        // 프로필 이미지 로딩
+        holder.imgProfile.loadProfileImage(postExtra.profileImage)
 
         val context = holder.itemView.context
         val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
@@ -88,7 +92,7 @@ class BoardAdapter(
                 .load(Uri.parse(post.image))
                 .into(holder.imgBoard)
         } else {
-            holder.imgBoard.setImageResource(R.drawable.ic_launcher_background)
+            holder.imgBoard.setImageResource(R.drawable.app_logo)
         }
 
         // 좋아요 상태를 백그라운드에서 불러오기

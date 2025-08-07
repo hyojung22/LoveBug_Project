@@ -28,7 +28,8 @@ class SupabaseAuthRepository {
                 this.password = password
                 data = JsonObject(mapOf(
                     "username" to JsonPrimitive(username),
-                    "nickname" to JsonPrimitive(nickname)
+                    "nickname" to JsonPrimitive(nickname),
+                    "display_name" to JsonPrimitive(nickname) // Add display_name field
                 ))
             }
             Result.success(result)

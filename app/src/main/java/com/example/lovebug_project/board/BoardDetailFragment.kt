@@ -172,7 +172,7 @@ class BoardDetailFragment : Fragment() {
                 .into(binding.imgBoard)
         } else {
             // 이미지가 없을 경우 기본 이미지 표시
-            binding.imgBoard.setImageResource(R.drawable.ic_launcher_background)
+            binding.imgBoard.setImageResource(R.drawable.app_logo)
         }
 
         // TODO: Implement Supabase like functionality
