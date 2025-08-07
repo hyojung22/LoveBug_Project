@@ -13,8 +13,11 @@ import com.example.lovebug_project.chat.ChatFragment // 채팅 프래그먼트 i
 import com.example.lovebug_project.chatlist.adapter.ChatListAdapter
 import com.example.lovebug_project.chatlist.model.ChatRoom
 import com.example.lovebug_project.data.repository.SupabaseChatRepository
+import com.example.lovebug_project.data.supabase.models.ChatRoomInfo
 import com.example.lovebug_project.databinding.FragmentChatListBinding
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 class ChatListFragment : Fragment() {
 
@@ -24,6 +27,9 @@ class ChatListFragment : Fragment() {
     private lateinit var chatListAdapter: ChatListAdapter
     private val chatRoomList = mutableListOf<ChatRoom>() // 실제로는 ViewModel이나 Repository에서 가져옴
     private val chatRepository = SupabaseChatRepository()
+    
+    // ChatRoom ID와 Partner ID 매핑을 위한 맵
+    private val chatRoomPartnerMap = mutableMapOf<String, String>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -43,8 +49,9 @@ class ChatListFragment : Fragment() {
 
     private fun setupRecyclerView() {
         chatListAdapter = ChatListAdapter(chatRoomList) { chatRoom ->
-            // 아이템 클릭 시 ChatFragment로 이동
-            navigateToChatFragment(chatRoom)
+            // 아이템 클릭 시 ChatFragment로 이동 (Partner ID 포함)
+            val partnerId = chatRoomPartnerMap[chatRoom.roomId]
+            navigateToChatFragment(chatRoom, partnerId)
         }
         binding.recyclerViewChatList.apply {
             layoutManager = LinearLayoutManager(context)
@@ -123,21 +130,80 @@ class ChatListFragment : Fragment() {
         }
     }
 
-    // 임시로 대화방 목록 데이터 생성 (실제로는 서버나 로컬 DB에서 가져와야 함)
+    /**
+     * Load chat rooms from Supabase database
+     */
     private fun loadChatRooms() {
-        // TODO: 실제 데이터 로딩 로직 구현
-        val dummyChatRooms = listOf(
-            ChatRoom("room1", "개발자 A", "안녕하세요! 오늘 날씨 좋네요.", System.currentTimeMillis() - 100000, null),
-            ChatRoom("room2", "디자이너 B", "네, 좋아요. 커피 한잔 어때요?", System.currentTimeMillis() - 500000, null),
-            ChatRoom("room3", "기획자 C", "프로젝트 진행 상황 공유해주세요.", System.currentTimeMillis() - 800000, null)
+        lifecycleScope.launch {
+            try {
+                // Get current authenticated user ID
+                val currentUserId = chatRepository.getCurrentUserId()
+                
+                if (currentUserId == null) {
+                    Toast.makeText(context, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                
+                // Fetch chat rooms from database
+                val chatRoomInfoList = chatRepository.getUserChatsWithLastMessage(currentUserId)
+                
+                // Clear existing mappings
+                chatRoomPartnerMap.clear()
+                
+                // Convert ChatRoomInfo to ChatRoom for UI and populate partner mapping
+                val chatRooms = chatRoomInfoList.map { chatRoomInfo ->
+                    // Store partnerId mapping before conversion
+                    chatRoomPartnerMap[chatRoomInfo.chatId.toString()] = chatRoomInfo.partnerId
+                    // Convert to ChatRoom
+                    chatRoomInfo.toChatRoom()
+                }
+                
+                // Update UI
+                chatRoomList.clear()
+                chatRoomList.addAll(chatRooms)
+                chatListAdapter.updateData(chatRoomList)
+                
+                if (chatRooms.isEmpty()) {
+                    // Show empty state message
+                    Toast.makeText(context, "채팅방이 없습니다. 새 채팅을 시작해보세요!", Toast.LENGTH_SHORT).show()
+                }
+                
+            } catch (e: Exception) {
+                Toast.makeText(context, "채팅방 목록을 불러오는데 실패했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    /**
+     * Convert ChatRoomInfo to ChatRoom for UI display
+     */
+    private fun ChatRoomInfo.toChatRoom(): ChatRoom {
+        // Convert timestamp from ISO string to Long (if available)
+        val timestamp = try {
+            if (lastMessageTimestamp != null) {
+                Instant.parse(lastMessageTimestamp).toEpochMilli()
+            } else {
+                // Use updated_at as fallback
+                Instant.parse(updatedAt).toEpochMilli()
+            }
+        } catch (e: Exception) {
+            // Fallback to current time if parsing fails
+            System.currentTimeMillis()
+        }
+        
+        return ChatRoom(
+            roomId = chatId.toString(),
+            partnerName = partnerNickname,
+            lastMessage = lastMessage ?: "채팅을 시작하세요",
+            timestamp = timestamp,
+            partnerProfileImageUrl = partnerAvatarUrl
         )
-        chatRoomList.clear()
-        chatRoomList.addAll(dummyChatRooms)
-        chatListAdapter.updateData(chatRoomList)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        // Clear partner mapping to prevent memory leaks
+        chatRoomPartnerMap.clear()
     }
 }

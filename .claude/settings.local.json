@@ -15,7 +15,8 @@
       "Bash(for file in *.kt)",
       "Bash(do mv \"$file\" \"$file.bak\")",
       "Bash(done)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

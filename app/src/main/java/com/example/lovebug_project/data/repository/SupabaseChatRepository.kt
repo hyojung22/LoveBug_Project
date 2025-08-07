@@ -443,6 +443,89 @@ class SupabaseChatRepository {
             emptyList()
         }
     }
+    
+    /**
+     * Get user's chat rooms with participant information and last message
+     * @param userId User ID
+     * @return List of chat rooms with complete information including last message
+     */
+    suspend fun getUserChatsWithLastMessage(userId: String): List<ChatRoomInfo> {
+        return try {
+            val chats = supabase.from("chats")
+                .select {
+                    filter {
+                        or {
+                            eq("user1_id", userId)
+                            eq("user2_id", userId)
+                        }
+                    }
+                }
+                .decodeList<Chat>()
+            
+            // Sort chats by updated_at in descending order (most recent first)
+            val sortedChats = chats.sortedByDescending { chat ->
+                try {
+                    java.time.Instant.parse(chat.updatedAt ?: chat.createdAt ?: "1970-01-01T00:00:00Z").toEpochMilli()
+                } catch (e: Exception) {
+                    0L // Fallback for invalid timestamps
+                }
+            }
+            
+            // Get participant information and last message for each chat
+            sortedChats.mapNotNull { chat ->
+                val partnerId = if (chat.user1Id == userId) chat.user2Id else chat.user1Id
+                
+                // Get partner profile
+                val partnerProfile = supabase.from("profiles")
+                    .select(Columns.list("id", "nickname", "avatar_url")) {
+                        filter {
+                            eq("id", partnerId)
+                        }
+                    }
+                    .decodeSingleOrNull<PartnerProfile>()
+                
+                // Get last message for this chat
+                val messages = supabase.from("chat_messages")
+                    .select(Columns.list("chat_id", "sender_id", "message", "timestamp")) {
+                        filter {
+                            eq("chat_id", chat.chatId)
+                        }
+                    }
+                    .decodeList<ChatMessage>()
+                
+                // Sort messages by timestamp and get the most recent one
+                val lastMessage = messages
+                    .sortedByDescending { message ->
+                        try {
+                            java.time.Instant.parse(message.timestamp).toEpochMilli()
+                        } catch (e: Exception) {
+                            0L // Fallback for invalid timestamps
+                        }
+                    }
+                    .firstOrNull()
+                
+                if (partnerProfile != null) {
+                    ChatRoomInfo(
+                        chatId = chat.chatId,
+                        partnerId = partnerId,
+                        partnerNickname = partnerProfile.nickname,
+                        partnerAvatarUrl = partnerProfile.avatarUrl,
+                        updatedAt = chat.updatedAt ?: "",
+                        createdAt = chat.createdAt ?: "",
+                        lastMessage = lastMessage?.message ?: "채팅을 시작하세요",
+                        lastMessageTimestamp = lastMessage?.timestamp
+                    )
+                } else {
+                    null
+                }
+            }
+            
+        } catch (e: Exception) {
+            ErrorReporter.logSupabaseError("GetUserChatsWithLastMessage", e,
+                ErrorReporter.createContext("userId" to userId))
+            emptyList()
+        }
+    }
 }
 
 /**
