@@ -204,9 +204,6 @@ class BoardDetailFragment : Fragment() {
             }
         }
 
-        // TODO: Implement Supabase like functionality
-        // val likeRepository = MyApplication.postRepository
-
         binding.tvNick.text = postExtra.nickname
 
         // 좋아요 상태 변수 초기화
@@ -217,30 +214,59 @@ class BoardDetailFragment : Fragment() {
         binding.tvComment.text = postExtra.commentCount.toString()
         binding.etContent.setText(postExtra.post.content)
         
-        // TODO: Implement Supabase like functionality
-        /*
+        // Supabase 좋아요 기능 구현
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                isLiked = MyApplication.postRepository.isPostLikedByUser(currentUserId, postExtra.post.postId)
-                likeCount = MyApplication.postRepository.getLikeCountByPost(postExtra.post.postId)
-                
-                withContext(Dispatchers.Main) {
-                    binding.tvLike.text = likeCount.toString()
-                    binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
+                if (currentUserUuid != null) {
+                    val isLikedResult = MyApplication.repositoryManager.postRepository.isPostLikedByUser(
+                        postExtra.post.postId, currentUserUuid
+                    )
+                    val likeCountResult = MyApplication.repositoryManager.postRepository.getLikeCountByPost(
+                        postExtra.post.postId
+                    )
+                    
+                    withContext(Dispatchers.Main) {
+                        isLikedResult.fold(
+                            onSuccess = { liked ->
+                                isLiked = liked
+                                likeCountResult.fold(
+                                    onSuccess = { count ->
+                                        likeCount = count
+                                        binding.tvLike.text = likeCount.toString()
+                                        binding.imgLike.setImageResource(
+                                            if (isLiked) R.drawable.like_on else R.drawable.like_off
+                                        )
+                                    },
+                                    onFailure = {
+                                        // 개수 조회 실패시 기본값
+                                        likeCount = 0
+                                        binding.tvLike.text = "0"
+                                        binding.imgLike.setImageResource(
+                                            if (isLiked) R.drawable.like_on else R.drawable.like_off
+                                        )
+                                    }
+                                )
+                            },
+                            onFailure = {
+                                // 에러 발생 시 기본값으로 설정
+                                binding.tvLike.text = "0"
+                                binding.imgLike.setImageResource(R.drawable.like_off)
+                            }
+                        )
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        binding.tvLike.text = "0"
+                        binding.imgLike.setImageResource(R.drawable.like_off)
+                    }
                 }
             } catch (e: Exception) {
-                // 에러 발생 시 기본값으로 설정
                 withContext(Dispatchers.Main) {
                     binding.tvLike.text = "0"
                     binding.imgLike.setImageResource(R.drawable.like_off)
                 }
             }
         }
-        */
-        
-        // Temporary placeholder
-        binding.tvLike.text = "0"
-        binding.imgLike.setImageResource(R.drawable.like_off)
 
         // 게시물 이미지
         if (!postExtra.post.image.isNullOrEmpty()) {
@@ -252,59 +278,91 @@ class BoardDetailFragment : Fragment() {
             binding.imgBoard.setImageResource(R.drawable.app_logo)
         }
 
-        // TODO: Implement Supabase like functionality
+        // Supabase 좋아요 클릭 핸들러
         binding.imgLike.setOnClickListener {
-            // TODO: Implement like/unlike with Supabase
-            /*
+            if (currentUserUuid == null) {
+                android.widget.Toast.makeText(requireContext(), "로그인이 필요합니다.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
             // 중복 클릭 방지
             binding.imgLike.isEnabled = false
             
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val newIsLiked: Boolean
-                    if (isLiked) {
-                        MyApplication.postRepository.deleteLike(currentUserId, postExtra.post.postId)
-                        newIsLiked = false
+                    val result = if (isLiked) {
+                        // 좋아요 취소
+                        MyApplication.repositoryManager.postRepository.removeLike(postExtra.post.postId, currentUserUuid)
                     } else {
-                        MyApplication.postRepository.insertLike(postExtra.post.postId, currentUserId)
-                        newIsLiked = true
+                        // 좋아요 추가
+                        MyApplication.repositoryManager.postRepository.addLike(postExtra.post.postId, currentUserUuid)
                     }
                     
-                    // 최신 좋아요 수 가져오기
-                    val newLikeCount = MyApplication.postRepository.getLikeCountByPost(postExtra.post.postId)
-                    
-                    // UI 스레드에서 UI 업데이트
-                    withContext(Dispatchers.Main) {
-                        isLiked = newIsLiked
-                        likeCount = newLikeCount
-                        
-                        // UI 반영
-                        binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
-                        binding.tvLike.text = likeCount.toString()
-                        
-                        // 목록 화면에 결과 전달
-                        parentFragmentManager.setFragmentResult(
-                            "likeUpdate",
-                            Bundle().apply {
-                                putInt("postId", postExtra.post.postId)
-                                putBoolean("isLiked", isLiked)
-                                putInt("likeCount", likeCount)
+                    result.fold(
+                        onSuccess = {
+                            // 성공시 최신 좋아요 개수 조회
+                            val countResult = MyApplication.repositoryManager.postRepository.getLikeCountByPost(postExtra.post.postId)
+                            
+                            withContext(Dispatchers.Main) {
+                                countResult.fold(
+                                    onSuccess = { newLikeCount ->
+                                        // UI 업데이트
+                                        isLiked = !isLiked
+                                        likeCount = newLikeCount
+                                        
+                                        binding.imgLike.setImageResource(
+                                            if (isLiked) R.drawable.like_on else R.drawable.like_off
+                                        )
+                                        binding.tvLike.text = likeCount.toString()
+                                        
+                                        // 목록 화면에 결과 전달
+                                        parentFragmentManager.setFragmentResult(
+                                            "likeUpdate",
+                                            Bundle().apply {
+                                                putInt("postId", postExtra.post.postId)
+                                                putBoolean("isLiked", isLiked)
+                                                putInt("likeCount", likeCount)
+                                            }
+                                        )
+                                    },
+                                    onFailure = {
+                                        // 개수 조회 실패시 UI만 토글
+                                        isLiked = !isLiked
+                                        likeCount = if (isLiked) likeCount + 1 else maxOf(0, likeCount - 1)
+                                        
+                                        binding.imgLike.setImageResource(
+                                            if (isLiked) R.drawable.like_on else R.drawable.like_off
+                                        )
+                                        binding.tvLike.text = likeCount.toString()
+                                    }
+                                )
+                                
+                                // 버튼 다시 활성화
+                                binding.imgLike.isEnabled = true
                             }
-                        )
-                        
-                        // 버튼 다시 활성화
-                        binding.imgLike.isEnabled = true
-                    }
+                        },
+                        onFailure = { exception ->
+                            withContext(Dispatchers.Main) {
+                                binding.imgLike.isEnabled = true
+                                android.widget.Toast.makeText(
+                                    requireContext(), 
+                                    "좋아요 처리 실패: ${exception.message}", 
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
                 } catch (e: Exception) {
-                    // 에러 발생 시 UI 스레드에서 처리
                     withContext(Dispatchers.Main) {
                         binding.imgLike.isEnabled = true
-                        // 에러 메시지 표시 (선택적)
-                        // Toast.makeText(requireContext(), "좋아요 처리 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(
+                            requireContext(), 
+                            "오류가 발생했습니다: ${e.message}", 
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
-            */
         }
 
         // 상단 프로필 이미지

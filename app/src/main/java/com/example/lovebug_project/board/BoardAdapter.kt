@@ -18,9 +18,15 @@ import com.example.lovebug_project.data.db.entity.Like
 import com.example.lovebug_project.data.db.entity.Post
 import com.example.lovebug_project.data.db.entity.PostWithExtras
 import com.example.lovebug_project.utils.loadProfileImage
+import com.example.lovebug_project.utils.AuthHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class BoardAdapter(
-    private val onItemClick: (PostWithExtras) -> Unit
+    private val onItemClick: (PostWithExtras) -> Unit,
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) : RecyclerView.Adapter<BoardAdapter.BoardViewHolder>() {
     private var postList: List<PostWithExtras> = emptyList()
     
@@ -95,6 +101,9 @@ class BoardAdapter(
             holder.imgBoard.setImageResource(R.drawable.app_logo)
         }
 
+        // 현재 사용자 UUID 가져오기
+        val currentUserUuid = AuthHelper.getSupabaseUserId(context)
+        
         // 좋아요 상태를 백그라운드에서 불러오기
         var isLiked = false
         var likeCount = 0
@@ -102,50 +111,109 @@ class BoardAdapter(
         // 초기 로딩 상태 설정 (기본값)
         updateLikeUI(holder, false, postExtra.likeCount)
         
-        // TODO: Implement Like functionality with Supabase
-        // Temporarily using default values until Like Repository is implemented
-        backgroundExecutor.execute {
-            try {
-                // Placeholder - use post data for like count
-                val currentIsLiked = false // Default: not liked
-                val currentLikeCount = postExtra.likeCount // Use existing like count from post data
-                
-                mainHandler.post {
-                    isLiked = currentIsLiked
-                    likeCount = currentLikeCount
-                    updateLikeUI(holder, isLiked, likeCount)
-                }
-            } catch (e: Exception) {
-                // 에러 시 기본값 유지
-                mainHandler.post {
-                    updateLikeUI(holder, false, postExtra.likeCount)
+        // Supabase에서 실제 좋아요 상태 로드
+        if (currentUserUuid != null) {
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    // 좋아요 상태와 개수를 동시에 조회
+                    val isLikedResult = MyApplication.repositoryManager.postRepository.isPostLikedByUser(
+                        post.postId, currentUserUuid
+                    )
+                    val likeCountResult = MyApplication.repositoryManager.postRepository.getLikeCountByPost(
+                        post.postId
+                    )
+                    
+                    withContext(Dispatchers.Main) {
+                        isLikedResult.fold(
+                            onSuccess = { liked ->
+                                isLiked = liked
+                                likeCountResult.fold(
+                                    onSuccess = { count ->
+                                        likeCount = count
+                                        updateLikeUI(holder, isLiked, likeCount)
+                                    },
+                                    onFailure = {
+                                        // 개수 조회 실패시 기본값 사용
+                                        likeCount = postExtra.likeCount
+                                        updateLikeUI(holder, isLiked, likeCount)
+                                    }
+                                )
+                            },
+                            onFailure = {
+                                // 에러 시 기본값 유지
+                                updateLikeUI(holder, false, postExtra.likeCount)
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        updateLikeUI(holder, false, postExtra.likeCount)
+                    }
                 }
             }
         }
 
-        // 좋아요 버튼 클릭 (백그라운드 처리)
+        // 좋아요 버튼 클릭 (Supabase DB 연동)
         holder.imgLike.setOnClickListener {
+            if (currentUserUuid == null) {
+                android.widget.Toast.makeText(context, "로그인이 필요합니다.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
             // 중복 클릭 방지
             holder.imgLike.isEnabled = false
             
-            backgroundExecutor.execute {
+            coroutineScope.launch(Dispatchers.IO) {
                 try {
-                    // TODO: Implement Like toggle with Supabase
-                    // Temporarily toggle local state until Like Repository is implemented
-                    val newIsLiked: Boolean = !isLiked
-                    val newCount = if (newIsLiked) likeCount + 1 else maxOf(0, likeCount - 1)
-                    
-                    mainHandler.post {
-                        isLiked = newIsLiked
-                        likeCount = newCount
-                        updateLikeUI(holder, isLiked, newCount)
-                        holder.imgLike.isEnabled = true
+                    val result = if (isLiked) {
+                        // 좋아요 취소
+                        MyApplication.repositoryManager.postRepository.removeLike(post.postId, currentUserUuid)
+                    } else {
+                        // 좋아요 추가
+                        MyApplication.repositoryManager.postRepository.addLike(post.postId, currentUserUuid)
                     }
+                    
+                    result.fold(
+                        onSuccess = {
+                            // 성공시 최신 좋아요 개수 조회
+                            val countResult = MyApplication.repositoryManager.postRepository.getLikeCountByPost(post.postId)
+                            
+                            withContext(Dispatchers.Main) {
+                                countResult.fold(
+                                    onSuccess = { newCount ->
+                                        isLiked = !isLiked
+                                        likeCount = newCount
+                                        updateLikeUI(holder, isLiked, likeCount)
+                                    },
+                                    onFailure = {
+                                        // 개수 조회 실패시 UI만 토글
+                                        isLiked = !isLiked
+                                        likeCount = if (isLiked) likeCount + 1 else maxOf(0, likeCount - 1)
+                                        updateLikeUI(holder, isLiked, likeCount)
+                                    }
+                                )
+                                holder.imgLike.isEnabled = true
+                            }
+                        },
+                        onFailure = { exception ->
+                            withContext(Dispatchers.Main) {
+                                holder.imgLike.isEnabled = true
+                                android.widget.Toast.makeText(
+                                    context, 
+                                    "좋아요 처리 실패: ${exception.message}", 
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
                 } catch (e: Exception) {
-                    mainHandler.post {
+                    withContext(Dispatchers.Main) {
                         holder.imgLike.isEnabled = true
-                        // 에러 발생 시 원래 상태 복구
-                        updateLikeUI(holder, isLiked, likeCount)
+                        android.widget.Toast.makeText(
+                            context, 
+                            "오류가 발생했습니다: ${e.message}", 
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }

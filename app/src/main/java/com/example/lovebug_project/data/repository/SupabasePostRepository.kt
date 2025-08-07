@@ -363,6 +363,155 @@ class SupabasePostRepository {
         }
     }
     
+    // ============ 좋아요 관련 기능 ============
+    
+    /**
+     * 좋아요 추가
+     */
+    suspend fun addLike(postId: Int, userId: String): Result<com.example.lovebug_project.data.supabase.models.Like> {
+        return measureOperation("addLike") {
+            try {
+                val like = com.example.lovebug_project.data.supabase.models.Like(
+                    postId = postId,
+                    userId = userId
+                )
+                
+                val result = supabase.from("likes")
+                    .insert(like) {
+                        select()
+                    }
+                    .decodeSingle<com.example.lovebug_project.data.supabase.models.Like>()
+                
+                ErrorReporter.logSuccess(
+                    "addLike", 
+                    "Like added for post $postId by user $userId"
+                )
+                
+                Result.success(result)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "addLike",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "userId" to userId
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 좋아요 삭제
+     */
+    suspend fun removeLike(postId: Int, userId: String): Result<Unit> {
+        return measureOperation("removeLike") {
+            try {
+                supabase.from("likes")
+                    .delete {
+                        filter {
+                            and {
+                                eq("post_id", postId)
+                                eq("user_id", userId)
+                            }
+                        }
+                    }
+                
+                ErrorReporter.logSuccess(
+                    "removeLike", 
+                    "Like removed for post $postId by user $userId"
+                )
+                
+                Result.success(Unit)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "removeLike",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "userId" to userId
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 특정 게시글의 좋아요 개수 조회
+     */
+    suspend fun getLikeCountByPost(postId: Int): Result<Int> {
+        return measureOperation("getLikeCountByPost") {
+            try {
+                val likes = supabase.from("likes")
+                    .select {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                    .decodeList<com.example.lovebug_project.data.supabase.models.Like>()
+                
+                ErrorReporter.trackPerformance(
+                    operationName = "getLikeCountByPost",
+                    duration = 0,
+                    success = true,
+                    recordCount = likes.size
+                )
+                
+                Result.success(likes.size)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "getLikeCountByPost",
+                    error = e,
+                    context = ErrorReporter.createContext("postId" to postId)
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 사용자가 특정 게시글에 좋아요를 눌렀는지 확인
+     */
+    suspend fun isPostLikedByUser(postId: Int, userId: String): Result<Boolean> {
+        return measureOperation("isPostLikedByUser") {
+            try {
+                val likes = supabase.from("likes")
+                    .select {
+                        filter {
+                            and {
+                                eq("post_id", postId)
+                                eq("user_id", userId)
+                            }
+                        }
+                    }
+                    .decodeList<com.example.lovebug_project.data.supabase.models.Like>()
+                
+                val isLiked = likes.isNotEmpty()
+                
+                ErrorReporter.trackPerformance(
+                    operationName = "isPostLikedByUser",
+                    duration = 0,
+                    success = true,
+                    recordCount = likes.size
+                )
+                
+                Result.success(isLiked)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "isPostLikedByUser",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "userId" to userId
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
     // ============ 댓글 관련 기능 ============
     
     /**

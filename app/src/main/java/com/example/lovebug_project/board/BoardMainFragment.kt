@@ -82,7 +82,8 @@ class BoardMainFragment : Fragment() {
         }
 
         // 어댑터 관련 변수
-        boardAdapter = BoardAdapter { selectedPost ->
+        boardAdapter = BoardAdapter(
+            onItemClick = { selectedPost ->
             val mainActivity = requireActivity() as MainActivity
 
             // 제목 변경
@@ -106,7 +107,9 @@ class BoardMainFragment : Fragment() {
                 .replace(R.id.frame2, detailFragment) // replace 위치는 프로젝트 구조에 따라 다름
                 .addToBackStack(null) // 뒤로가기 가능하게
                 .commit()
-        }
+        },
+            coroutineScope = lifecycleScope
+        )
         binding.rvBoard.layoutManager = LinearLayoutManager(requireContext())
         binding.rvBoard.adapter = boardAdapter
 
