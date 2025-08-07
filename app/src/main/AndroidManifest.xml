@@ -19,7 +19,7 @@
             android:name=".auth.WelcomeActivity"
             android:exported="false" />
         <activity
-            android:name=".SplashActivity"
+            android:name=".auth.JoinActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"
@@ -36,7 +36,8 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".board.BoardWriteActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".auth.PayActivity"
             android:exported="false" />
@@ -44,7 +45,7 @@
             android:name=".auth.LoginActivity"
             android:exported="false" />
         <activity
-            android:name=".auth.JoinActivity"
+            android:name=".SplashActivity"
             android:exported="true">
 
             <!-- SplashActivity에서는 windowSoftInputMode가 필수는 아님 -->
