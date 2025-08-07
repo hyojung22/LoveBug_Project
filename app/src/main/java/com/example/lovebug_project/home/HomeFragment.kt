@@ -593,7 +593,12 @@ class HomeFragment : Fragment() {
     
     override fun onResume() {
         super.onResume()
-        // ExpenseDetailActivity에서 돌아올 때 지출 데이터 새로고침
+        // ExpenseDetailActivity에서 돌아올 때 선택 상태 초기화 및 지출 데이터 새로고침
+        val previousSelection = selectedDate
+        selectedDate = null
+        if (previousSelection != null) {
+            binding.calendarView.notifyDateChanged(previousSelection)
+        }
         loadExpenseDataForCurrentMonth()
     }
     
