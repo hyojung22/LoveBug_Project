@@ -69,13 +69,13 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
             android:adjustViewBounds="true"
-            app:layout_constraintBottom_toBottomOf="@+id/textView"
+            app:layout_constraintBottom_toBottomOf="@+id/tvBoardName"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/textView"
+            app:layout_constraintTop_toTopOf="@+id/tvBoardName"
             app:srcCompat="@drawable/back" />
 
         <TextView
-            android:id="@+id/textView"
+            android:id="@+id/tvBoardName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="토끼"
@@ -93,9 +93,9 @@
             android:layout_marginEnd="20dp"
             android:text="삭제"
             android:textSize="16sp"
-            app:layout_constraintBottom_toBottomOf="@+id/textView"
+            app:layout_constraintBottom_toBottomOf="@+id/tvBoardName"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/textView" />
+            app:layout_constraintTop_toTopOf="@+id/tvBoardName" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

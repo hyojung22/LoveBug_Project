@@ -12,11 +12,11 @@ interface ChatDao {
      * 채팅방 생성
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(chat: Chat)
+    fun insert(chat: Chat)
 
     /**
      * 특정 유저가 포함된 채팅방 목록 가져오기
      */
     @Query("SELECT * FROM chats WHERE user1Id = :userId OR user2Id = :userId")
-    suspend fun getChatsByUser(userId: Int): List<Chat>
+    fun getChatsByUser(userId: Int): List<Chat>
 }

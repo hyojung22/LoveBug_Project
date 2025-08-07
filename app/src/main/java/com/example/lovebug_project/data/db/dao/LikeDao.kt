@@ -13,17 +13,23 @@ interface LikeDao {
      * 좋아요 추가
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(like: Like)
+    fun insert(like: Like)
 
     /**
      * 좋아요 삭제
      */
     @Delete
-    suspend fun delete(like: Like)
+    fun delete(like: Like)
 
     /**
      * 게시글 좋아요 수 가져오기
      */
     @Query("SELECT COUNT(*) FROM likes WHERE postId = :postId")
-    suspend fun getLikeCountByPost(postId: Int): Int
+    fun getLikeCountByPost(postId: Int): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM likes WHERE postId = :postId AND userId = :userId)")
+    fun isPostLikedByUser(userId: Int, postId: Int): Boolean
+
+    @Query("DELETE FROM likes WHERE postId = :postId AND userId = :userId")
+    fun deleteLike(userId: Int, postId: Int)
 }

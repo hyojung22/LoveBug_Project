@@ -5,8 +5,77 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".auth.LoginActivity"
     android:paddingVertical="30dp"
+    tools:context=".auth.LoginActivity"
+    android:background="@color/white">
+
+    <Button
+        android:id="@+id/loginBtn"
+        android:layout_width="330dp"
+        android:layout_height="70dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="76dp"
+        android:layout_marginEnd="20dp"
+        android:text="로그인"
+        android:visibility="visible"
+        app:cornerRadius="5dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/passwordArea" />
+
+    <EditText
+        android:id="@+id/passwordArea"
+        android:layout_width="330dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="36dp"
+        android:layout_marginEnd="20dp"
+        android:ems="10"
+        android:hint="비밀번호"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/emailArea" />
+
+    <EditText
+        android:id="@+id/emailArea"
+        android:layout_width="330dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="160dp"
+        android:layout_marginEnd="20dp"
+        android:ems="10"
+        android:hint="아이디"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="0dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="68dp"
+        android:layout_marginEnd="20dp"
+        android:text="회원이신가요?"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/btnGoSignUp"
+        android:layout_width="160dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:ems="10"
+        android:inputType="text"
+        android:text=" 회원가입 하러가기"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/loginBtn"
+        app:layout_constraintVertical_bias="0.485" />
     android:paddingHorizontal="20dp"
     android:background="@color/white">
 

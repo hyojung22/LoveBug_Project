@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:name=".data.db.MyApplication"
         android:allowBackup="true"
@@ -11,22 +13,41 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Lovebug_project">
+        android:theme="@style/Theme.Lovebug_project"
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".auth.WelcomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SplashActivity"
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" /> <!-- 여기에 추가 -->
+        <activity
+            android:name=".expense.ExpenseDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".expense.ExpenseRegisterActivity"
+            android:exported="false"
+            android:parentActivityName=".expense.ExpenseDetailActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".board.BoardWriteActivity"
             android:exported="false" />
         <activity
-            android:name=".auth.JoinActivity"
+            android:name=".auth.PayActivity"
             android:exported="false" />
         <activity
             android:name=".auth.LoginActivity"
             android:exported="false" />
         <activity
-            android:name=".SplashActivity"
+            android:name=".auth.JoinActivity"
             android:exported="true">
+
+            <!-- SplashActivity에서는 windowSoftInputMode가 필수는 아님 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

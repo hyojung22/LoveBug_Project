@@ -28,8 +28,10 @@ android {
         }
     }
     compileOptions {
+        // Enable support for the new language APIs
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -40,6 +42,12 @@ android {
 }
 
 dependencies {
+    // Volley
+    implementation("com.android.volley:volley:1.2.1")
+
+    // Glide 이미지 생성 추가
+    implementation("com.github.bumptech.glide:glide:4.11.0")
+
     // ✅ Room 추가
     implementation(libs.room.runtime)
     kapt(libs.room.compiler)
@@ -57,7 +65,16 @@ dependencies {
     implementation(libs.androidx.cardview)
     implementation(libs.androidx.fragment)
     implementation(libs.androidx.recyclerview)
+    
+    // Kizitonwose Calendar
+    implementation("com.kizitonwose.calendar:view:2.6.0")
+
+
+    // Java 8+ API desugaring support
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
 }

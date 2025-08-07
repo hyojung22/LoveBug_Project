@@ -1,10 +1,15 @@
 package com.example.lovebug_project
 
 import android.os.Bundle
+import android.view.View
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.example.lovebug_project.board.BoardMainFragment
 import com.example.lovebug_project.chat.ChatFragment
+import com.example.lovebug_project.chatlist.ChatListFragment
 import com.example.lovebug_project.databinding.ActivityMainBinding
 import com.example.lovebug_project.databinding.FragmentHomeBinding
 import com.example.lovebug_project.home.HomeFragment
@@ -16,9 +21,41 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+//        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
+        // 하드웨어 뒤로가기 버튼 처리
+        onBackPressedDispatcher.addCallback(this) {
+            val frame2 = findViewById<View>(R.id.frame2)
+            val frame = findViewById<View>(R.id.frame)
+            val titleBar = findViewById<View>(R.id.clTitleBar)
+
+            if (frame2.visibility == View.VISIBLE) {
+                // 상세 페이지 → 리스트 페이지로
+                supportFragmentManager.popBackStack()
+                frame2.visibility = View.GONE
+                frame.visibility = View.VISIBLE
+                titleBar.visibility = View.GONE
+            } else {
+                // 기본 동작 (앱 종료)
+                finish()
+            }
+        }
+
+        findViewById<View>(R.id.btnBack).setOnClickListener {
+            supportFragmentManager.popBackStack()
+
+            findViewById<View>(R.id.frame2).visibility = View.GONE
+            findViewById<View>(R.id.frame).visibility = View.VISIBLE
+            findViewById<View>(R.id.clTitleBar).visibility = View.GONE
+        }
 
         // 초기화 화면으로 쓸 수 있는 fragment를 지정!
         supportFragmentManager.beginTransaction()
@@ -36,9 +73,9 @@ class MainActivity : AppCompatActivity() {
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.frame, BoardMainFragment()).commit()
                 }
-                R.id.btnChat -> {
+                R.id.btnChat -> { // 수정된 부분
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.frame, ChatFragment()).commit()
+                        .replace(R.id.frame, ChatListFragment()).commit() // ChatListFragment로 변경
                 }
                 R.id.btnMyPage -> {
                     supportFragmentManager.beginTransaction()
@@ -48,4 +85,5 @@ class MainActivity : AppCompatActivity() {
             true
         }
     }
+
 }

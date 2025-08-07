@@ -14,23 +14,30 @@ interface CommentDao {
      * 댓글 추가
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(comment: Comment)
+    fun insert(comment: Comment)
 
     /**
      * 댓글 삭제
      */
     @Delete
-    suspend fun delete(comment: Comment)
+    fun delete(comment: Comment)
 
     /**
      * 댓글 수정
      */
     @Update
-    suspend fun update(comment: Comment)
+    fun update(comment: Comment)
 
     /**
      * 게시글의 댓글 리스트 가져오기
      */
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY createdAt ASC")
-    suspend fun getCommentsByPost(postId: Int): List<Comment>
+    fun getCommentsByPost(postId: Int): List<Comment>
+
+    @Query("SELECT COUNT(*) FROM comments WHERE postId = :postId")
+    fun getCommentCountByPost(postId: Int): Int
+
+    // ✅ 댓글 내용과 수정 시간만 업데이트
+    @Query("UPDATE comments SET content = :newContent, updateAt = :updatedAt WHERE commentId = :commentId")
+    fun updateCommentContent(commentId: Int, newContent: String, updatedAt: String)
 }

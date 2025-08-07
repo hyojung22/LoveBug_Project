@@ -5,9 +5,172 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".auth.JoinActivity"
-    android:paddingVertical="30dp"
-    android:paddingHorizontal="20dp"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:paddingVertical="24dp"
+    tools:context=".auth.JoinActivity">
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidelineStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_begin="40dp" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guidelineEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_end="40dp" />
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="회원가입"
+        android:textColor="@android:color/black"
+        android:textSize="24sp"
+        app:layout_constraintVertical_bias="0.1"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="2dp"
+        android:layout_marginTop="16dp"
+        android:max="100"
+        android:progress="100"
+        android:progressDrawable="@drawable/progress_bar_red"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
+
+
+    <TextView
+        android:id="@+id/labelName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="이름"
+        android:textColor="@android:color/black"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="@+id/inputName"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
+        app:layout_constraintTop_toTopOf="@+id/inputName" />
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrierLabels"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="end"
+        app:constraint_referenced_ids="labelName,labelNickname,labelId,labelPassword" />
+
+    <EditText
+        android:id="@+id/inputName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="96dp"
+
+        android:autofillHints="name"
+        android:backgroundTint="@android:color/black"
+        android:inputType="textPersonName"
+        android:maxLines="1"
+        android:textColor="@android:color/black"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
+        app:layout_constraintStart_toEndOf="@+id/barrierLabels"
+        app:layout_constraintTop_toBottomOf="@+id/progressBar" />
+
+    <TextView
+        android:id="@+id/labelNickname"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="닉네임"
+        android:textColor="@android:color/black"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="@+id/inputNickname"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
+        app:layout_constraintTop_toTopOf="@+id/inputNickname" />
+    <EditText
+        android:id="@+id/inputNickname"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="32dp"
+        android:autofillHints="username"
+        android:backgroundTint="@android:color/black"
+        android:inputType="text"
+        android:maxLines="1"
+        android:textColor="@android:color/black"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
+        app:layout_constraintStart_toEndOf="@+id/barrierLabels"
+        app:layout_constraintTop_toBottomOf="@+id/inputName" />
+
+    <TextView
+        android:id="@+id/labelId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="아이디"
+        android:textColor="@android:color/black"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="@+id/inputId"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
+        app:layout_constraintTop_toTopOf="@+id/inputId" />
+    <EditText
+        android:id="@+id/inputId"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="60dp"
+        android:backgroundTint="@android:color/black"
+        android:inputType="text"
+        android:maxLines="1"
+        android:textColor="@android:color/black"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
+        app:layout_constraintStart_toEndOf="@+id/barrierLabels"
+        app:layout_constraintTop_toBottomOf="@+id/inputNickname" />
+
+    <TextView
+        android:id="@+id/labelPassword"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="비밀번호"
+        android:textColor="@android:color/black"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="@+id/inputPassword"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
+        app:layout_constraintTop_toTopOf="@+id/inputPassword" />
+    <EditText
+        android:id="@+id/inputPassword"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="32dp"
+        android:autofillHints="password"
+        android:backgroundTint="@android:color/black"
+        android:inputType="textPassword"
+        android:maxLines="1"
+        android:textColor="@android:color/black"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
+        app:layout_constraintStart_toEndOf="@+id/barrierLabels"
+        app:layout_constraintTop_toBottomOf="@+id/inputId" />
+
+    <Button
+        android:id="@+id/btnRegister"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="72dp"
+        android:backgroundTint="@color/light_gray"
+        android:paddingHorizontal="48dp"
+        android:paddingVertical="12dp"
+        android:text="등록"
+        android:textColor="@color/dark_gray"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="@+id/guidelineEnd"
+        app:layout_constraintStart_toStartOf="@+id/guidelineStart"
+        app:layout_constraintTop_toBottomOf="@+id/inputPassword" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

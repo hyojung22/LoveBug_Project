@@ -30,7 +30,7 @@
         app:layout_constraintStart_toEndOf="@+id/imgProfile"
         app:layout_constraintTop_toTopOf="@+id/imgProfile" />
 
-    <TextView
+    <EditText
         android:id="@+id/tvCommentContent"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -59,6 +59,15 @@
         app:layout_constraintEnd_toStartOf="@+id/btnDeleteComment"
         app:layout_constraintTop_toTopOf="@+id/btnDeleteComment" />
 
+    <TextView
+        android:visibility="gone"
+        android:id="@+id/btnfinishComment"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="완료"
+        app:layout_constraintBottom_toBottomOf="@+id/btnEditComment"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/btnEditComment" />
     <TextView
         android:id="@+id/tvTime"
         android:layout_width="wrap_content"

@@ -13,17 +13,20 @@ interface BookmarkDao {
      * 게시글 북마크 추가
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(bookmark: Bookmark)
+    fun insert(bookmark: Bookmark)
 
     /**
      * 게시글 북마크 삭제
      */
     @Delete
-    suspend fun delete(bookmark: Bookmark)
+    fun delete(bookmark: Bookmark)
 
     /**
      * 유저가 북마크한 게시글 목록 가져오기
      */
     @Query("SELECT * FROM bookmarks WHERE userId = :userId")
-    suspend fun getBookmarksByUser(userId: Int): List<Bookmark>
+    fun getBookmarksByUser(userId: Int): List<Bookmark>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM bookmarks WHERE userId = :userId AND postId = :postId)")
+    fun isPostBookmarkedByUser(userId: Int, postId: Int): Boolean
 }
