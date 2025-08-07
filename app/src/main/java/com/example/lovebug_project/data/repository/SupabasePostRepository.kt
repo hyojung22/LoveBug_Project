@@ -316,19 +316,50 @@ class SupabasePostRepository {
     }
     
     /**
-     * 게시글 삭제
+     * 게시글 삭제 (연관 데이터 포함)
+     * FK 제약조건을 고려하여 comments, likes를 먼저 삭제한 후 게시글 삭제
      */
     suspend fun deletePost(postId: Int): Result<Unit> {
-        return try {
-            supabase.from("posts")
-                .delete {
-                    filter {
-                        eq("post_id", postId)
+        return measureOperation("deletePost") {
+            try {
+                // 1. 연관된 댓글 삭제 (comments 테이블에서 post_id가 일치하는 모든 댓글)
+                supabase.from("comments")
+                    .delete {
+                        filter {
+                            eq("post_id", postId)
+                        }
                     }
-                }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
+                
+                // 2. 연관된 좋아요 삭제 (likes 테이블에서 post_id가 일치하는 모든 좋아요)
+                supabase.from("likes")
+                    .delete {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                
+                // 3. 게시글 삭제 (posts 테이블에서 해당 post_id)
+                supabase.from("posts")
+                    .delete {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                
+                ErrorReporter.logSuccess(
+                    "deletePost", 
+                    "Post and related data deleted with ID: $postId"
+                )
+                
+                Result.success(Unit)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "deletePost",
+                    error = e,
+                    context = ErrorReporter.createContext("postId" to postId)
+                )
+                Result.failure(e)
+            }
         }
     }
     

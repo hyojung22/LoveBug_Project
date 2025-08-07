@@ -56,21 +56,63 @@ class BoardDetailFragment : Fragment() {
         // 🗑️ 삭제 버튼 클릭 핸들러
         requireActivity().findViewById<TextView>(R.id.btnDelete)
             .setOnClickListener {
-                // TODO: Implement Supabase post deletion
-                // MyApplication.postRepository.deletePost(postExtra.post.postId)
-                // 2) 메인에 삭제 알림
-                parentFragmentManager.setFragmentResult(
-                    "postDeleted",
-                    bundleOf("postId" to postExtra.post.postId)
-                )
-                // 3) UI 복구: 메인 목록 보여주고 상세 숨기기
-                requireActivity().apply {
-                    findViewById<FrameLayout>(R.id.frame).visibility = View.VISIBLE
-                    findViewById<FrameLayout>(R.id.frame2).visibility = View.GONE
-                    findViewById<View>(R.id.clTitleBar).visibility = View.GONE
-                }
-                // 4) 상세 프래그먼트 pop
-                parentFragmentManager.popBackStack()
+                // 삭제 확인 다이얼로그 표시
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("게시글 삭제")
+                    .setMessage("정말로 이 게시글을 삭제하시겠습니까?")
+                    .setPositiveButton("삭제") { _, _ ->
+                        // 1) Supabase에서 게시글 삭제
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            try {
+                                val result = MyApplication.repositoryManager.postRepository.deletePost(postExtra.post.postId)
+                                
+                                withContext(Dispatchers.Main) {
+                                    result.fold(
+                                        onSuccess = {
+                                            // 2) 메인에 삭제 알림
+                                            parentFragmentManager.setFragmentResult(
+                                                "postDeleted",
+                                                bundleOf("postId" to postExtra.post.postId)
+                                            )
+                                            // 3) UI 복구: 메인 목록 보여주고 상세 숨기기
+                                            requireActivity().apply {
+                                                findViewById<FrameLayout>(R.id.frame).visibility = View.VISIBLE
+                                                findViewById<FrameLayout>(R.id.frame2).visibility = View.GONE
+                                                findViewById<View>(R.id.clTitleBar).visibility = View.GONE
+                                            }
+                                            // 4) 상세 프래그먼트 pop
+                                            parentFragmentManager.popBackStack()
+                                            
+                                            // 성공 메시지 표시
+                                            android.widget.Toast.makeText(
+                                                requireContext(),
+                                                "게시글이 삭제되었습니다.",
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                        onFailure = { exception ->
+                                            // 삭제 실패 처리
+                                            android.widget.Toast.makeText(
+                                                requireContext(),
+                                                "게시글 삭제 실패: ${exception.message}",
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    android.widget.Toast.makeText(
+                                        requireContext(),
+                                        "게시글 삭제 중 오류 발생: ${e.message}",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton("취소", null)
+                    .show()
             }
 
 
