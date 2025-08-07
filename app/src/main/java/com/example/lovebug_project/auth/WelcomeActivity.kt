@@ -3,6 +3,7 @@ package com.example.lovebug_project.auth
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -41,9 +42,10 @@ class WelcomeActivity : AppCompatActivity() {
 
         // Process : 프로그램을 실행시키는 것
         // Thread : 최소 작업 단위, 프로세스 안에서 동작하는 작업
-        Handler().postDelayed({
+        Handler(Looper.getMainLooper()).postDelayed({
             val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
+            finish() // Activity 스택에서 제거하여 뒤로가기 시 재접근 방지
         }, 3000)
     }
 }

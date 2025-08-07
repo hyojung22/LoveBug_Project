@@ -17,10 +17,12 @@ import com.example.lovebug_project.mypage.MypageFragment
 import com.example.lovebug_project.utils.AuthHelper
 import com.example.lovebug_project.auth.LoginActivity
 import android.content.Intent
+import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding : ActivityMainBinding
+    private var backPressedTime: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,8 +62,16 @@ class MainActivity : AppCompatActivity() {
                 // 하단 네비게이션을 Board 탭으로 설정 (게시글 목록으로 돌아가므로)
                 binding.nav.selectedItemId = R.id.btnBoard
             } else {
-                // 기본 동작 (앱 종료)
-                finish()
+                // Double back press 패턴으로 앱 종료
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - backPressedTime < 2000) {
+                    // 2초 내 두 번째 뒤로가기 - 앱 종료
+                    finish()
+                } else {
+                    // 첫 번째 뒤로가기 - 토스트 메시지 표시
+                    backPressedTime = currentTime
+                    Toast.makeText(applicationContext, getString(R.string.back_press_exit_message), Toast.LENGTH_SHORT).show()
+                }
             }
         }
 

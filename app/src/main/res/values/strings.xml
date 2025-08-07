@@ -8,4 +8,7 @@
         <item>최신순</item>
         <item>좋아요순</item>
     </string-array>
+    
+    <!-- 뒤로가기 관련 메시지 -->
+    <string name="back_press_exit_message">뒤로가기를 한 번 더 누르면 앱이 종료됩니다.</string>
 </resources>
