@@ -173,12 +173,12 @@ class SupabaseChatRepository {
      * Get chat messages for a specific chat room
      * @param chatId Chat room ID
      * @param limit Number of messages to retrieve (default 50)
-     * @return List of chat messages
+     * @return List of chat messages ordered by timestamp (oldest first)
      */
     suspend fun getChatMessages(chatId: Int, limit: Int = 50): List<ChatMessage> {
         return try {
             // Use explicit column selection to avoid potential RLS issues
-            supabase.from("chat_messages")
+            val messages = supabase.from("chat_messages")
                 .select(Columns.list("message_id", "chat_id", "sender_id", "message", "timestamp")) {
                     filter { 
                         eq("chat_id", chatId)
@@ -186,7 +186,15 @@ class SupabaseChatRepository {
                     limit(limit.toLong())
                 }
                 .decodeList<ChatMessage>()
-                .reversed() // Show oldest first
+            
+            // Sort messages by timestamp ascending (oldest first) for natural chat order
+            messages.sortedBy { message ->
+                try {
+                    java.time.Instant.parse(message.timestamp).toEpochMilli()
+                } catch (e: Exception) {
+                    0L // Fallback for invalid timestamps
+                }
+            }
                 
         } catch (e: Exception) {
             ErrorReporter.logSupabaseError("GetChatMessages", e,

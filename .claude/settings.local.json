@@ -22,7 +22,8 @@
       "Bash(.gradlew.bat assembleDebug)",
       "Bash(dir)",
       "Bash(cmd.exe /c gradlew.bat assembleDebug)",
-      "Bash(cmd.exe:*)"
+      "Bash(cmd.exe:*)",
+      "Bash(.gradlew build --no-daemon)"
     ],
     "deny": []
   }
