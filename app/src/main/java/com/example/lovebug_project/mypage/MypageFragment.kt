@@ -6,10 +6,10 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.commit
 import com.example.lovebug_project.R
-import com.example.lovebug_project.auth.LoginActivity
 import com.example.lovebug_project.databinding.FragmentMypageBinding
+
 
 class MypageFragment : Fragment() {
 
@@ -19,7 +19,7 @@ class MypageFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         _binding = FragmentMypageBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -27,14 +27,18 @@ class MypageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 로그아웃 버튼 클릭 처리 (로그인 유지 제거)
-        binding.btnLogout.setOnClickListener {
-            val sharedPref = requireContext().getSharedPreferences("user_prefs", AppCompatActivity.MODE_PRIVATE)
-            sharedPref.edit().remove("userId").apply()
-
-            val intent = Intent(requireContext(), LoginActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
+        binding.constraintLayout2.setOnClickListener {
+            val categoryListToPass = listOf(
+                CategoryData("식비", 45, "#FFC3A0"),   // 주황색
+                CategoryData("교통", 25, "#A3D6E3"),   // 파란색
+                CategoryData("쇼핑", 15, "#C9E4A6"),   // 녹색
+                CategoryData("기타", 15, "#E4B4D1")    // 분홍색
+            )
+            parentFragmentManager.commit {
+                setReorderingAllowed(true)
+                replace(R.id.fragment_container, SavingPerformFragment.newInstance(categoryListToPass))
+                addToBackStack(null)
+            }
         }
     }
 
