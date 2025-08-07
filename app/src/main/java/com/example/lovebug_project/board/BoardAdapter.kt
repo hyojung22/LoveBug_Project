@@ -1,6 +1,7 @@
 package com.example.lovebug_project.board
 
 import android.content.Context
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -76,7 +77,7 @@ class BoardAdapter(
         // 이미지 표시
         if (!post.image.isNullOrEmpty()) {
             Glide.with(holder.itemView.context)
-                .load(post.image)
+                .load(Uri.parse(post.image))
                 .into(holder.imgBoard)
         } else {
             holder.imgBoard.setImageResource(R.drawable.ic_launcher_background)

@@ -2,11 +2,16 @@ package com.example.lovebug_project.board
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.TextView
+import androidx.core.os.bundleOf
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.example.lovebug_project.R
@@ -42,6 +47,27 @@ class BoardDetailFragment : Fragment() {
 
         postExtra = arguments?.getSerializable("postExtra") as? PostWithExtras ?: return
 
+        // 🗑️ 삭제 버튼 클릭 핸들러
+        requireActivity().findViewById<TextView>(R.id.btnDelete)
+            .setOnClickListener {
+                // 1) DB에서 삭제
+                MyApplication.database.postDao().deleteById(postExtra.post.postId)
+                // 2) 메인에 삭제 알림
+                parentFragmentManager.setFragmentResult(
+                    "postDeleted",
+                    bundleOf("postId" to postExtra.post.postId)
+                )
+                // 3) UI 복구: 메인 목록 보여주고 상세 숨기기
+                requireActivity().apply {
+                    findViewById<FrameLayout>(R.id.frame).visibility = View.VISIBLE
+                    findViewById<FrameLayout>(R.id.frame2).visibility = View.GONE
+                    findViewById<View>(R.id.clTitleBar).visibility = View.GONE
+                }
+                // 4) 상세 프래그먼트 pop
+                parentFragmentManager.popBackStack()
+            }
+
+
         val currentUserId = requireContext()
             .getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
             .getInt("userId", -1)
@@ -66,6 +92,8 @@ class BoardDetailFragment : Fragment() {
         binding.tvComment.text = initialCount.toString()
 
         loadComments(postExtra.post.postId)
+
+
 
         // 댓글 등록 버튼
         binding.btnCommentRegister.setOnClickListener {
@@ -94,19 +122,22 @@ class BoardDetailFragment : Fragment() {
 
         val likeDao = MyApplication.database.likeDao()
 
+        binding.tvNick.text = postExtra.nickname
+
         // 현재 좋아요 상태 불러오기
         var isLiked = likeDao.isPostLikedByUser(currentUserId, postExtra.post.postId)
         var likeCount = likeDao.getLikeCountByPost(postExtra.post.postId)
 
-        binding.tvNick.text = postExtra.nickname
+        // 기본 텍스트 및 이미지 세팅
         binding.tvLike.text = likeCount.toString()
         binding.tvComment.text = postExtra.commentCount.toString()
         binding.etContent.setText(postExtra.post.content)
         binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
 
+        // 게시물 이미지
         if (!postExtra.post.image.isNullOrEmpty()) {
             Glide.with(requireContext())
-                .load(postExtra.post.image)
+                .load(Uri.parse(postExtra.post.image))
                 .into(binding.imgBoard)
         } else {
             // 이미지가 없을 경우 기본 이미지 표시
@@ -139,12 +170,12 @@ class BoardDetailFragment : Fragment() {
         }
 
         // 상단 프로필 이미지
-        if (!postExtra.profileImage.isNullOrEmpty()) {
+        if (!postExtra.post.image.isNullOrEmpty()) {
             Glide.with(requireContext())
-                .load(postExtra.profileImage)
+                .load(postExtra.post.image)
                 .into(binding.imgProfile)
         } else {
-            binding.imgProfile.setImageResource(R.drawable.circle_button)
+            binding.imgProfile.setImageResource(R.drawable.ic_launcher_background)
         }
 
         // 하단 댓글 입력란 프로필 이미지
@@ -155,9 +186,6 @@ class BoardDetailFragment : Fragment() {
         } else {
             binding.imgProfile2.setImageResource(R.drawable.circle_button)
         }
-
-
-
 
     }
 
