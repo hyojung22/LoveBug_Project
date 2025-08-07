@@ -11,16 +11,26 @@ import com.bumptech.glide.Glide
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.supabase.models.Comment
+import com.example.lovebug_project.data.repository.SupabaseUserRepository
 import com.example.lovebug_project.utils.loadProfileImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CommentAdapter(
     private val currentUserId: String?, // 현재 로그인한 사용자 UUID (Supabase)
+    private val userRepository: SupabaseUserRepository, // 사용자 프로필 조회용
+    private val coroutineScope: CoroutineScope, // 코루틴 스코프
     private val onDeleteClick: (Comment) -> Unit, // 삭제
     private val onUpdateClick: (Comment, String) -> Unit, // 수정 완료 시 DB 반영
     private val onListChanged: ((Int) -> Unit)? = null // 🔹 추가: 리스트 변경 시 콜백
 ): RecyclerView.Adapter<CommentAdapter.CommentViewHolder>() {
 
     private var commentList: List<Comment> = emptyList()
+    
+    // 사용자 프로필 캐시 (userId -> nickname)
+    private val userProfileCache = mutableMapOf<String, String>()
 
     fun setComments(comments: List<Comment>) {
         commentList = comments
@@ -53,14 +63,9 @@ class CommentAdapter(
         position: Int
     ) {
         val comment = commentList[position]
-        // TODO: Implement Supabase user lookup
-        // val user = MyApplication.authRepository.getUserById(comment.userId)
-
-        // 닉네임 - temporary placeholder
-        holder.tvNick.text = "사용자"
-
-        // 프로필 이미지 - temporary placeholder (TODO: 사용자 정보 조회 시 실제 프로필 이미지 URL 사용)
-        holder.imgProfile.loadProfileImage(null)
+        
+        // 사용자 프로필 정보 로드
+        loadUserProfile(comment.userId, holder)
 
         // 댓글 내용, 시간
         holder.tvCommentContent.text = comment.content
@@ -110,5 +115,47 @@ class CommentAdapter(
 
     override fun getItemCount(): Int = commentList.size
 
+    /**
+     * 사용자 프로필 정보를 비동기적으로 로드하고 UI 업데이트
+     */
+    private fun loadUserProfile(userId: String, holder: CommentViewHolder) {
+        // 캐시에서 먼저 확인
+        val cachedNickname = userProfileCache[userId]
+        if (cachedNickname != null) {
+            holder.tvNick.text = cachedNickname
+            return
+        }
+        
+        // 기본값 설정
+        holder.tvNick.text = "로딩중..."
+        
+        // 비동기로 프로필 조회
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val userProfile = userRepository.getUserProfile(userId)
+                
+                withContext(Dispatchers.Main) {
+                    if (userProfile != null) {
+                        val nickname = userProfile.nickname.ifEmpty { "사용자" }
+                        holder.tvNick.text = nickname
+                        
+                        // 캐시에 저장
+                        userProfileCache[userId] = nickname
+                        
+                        // 프로필 이미지도 로드
+                        holder.imgProfile.loadProfileImage(userProfile.avatarUrl)
+                    } else {
+                        holder.tvNick.text = "사용자"
+                        holder.imgProfile.loadProfileImage(null)
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    holder.tvNick.text = "사용자"
+                    holder.imgProfile.loadProfileImage(null)
+                }
+            }
+        }
+    }
 
 }

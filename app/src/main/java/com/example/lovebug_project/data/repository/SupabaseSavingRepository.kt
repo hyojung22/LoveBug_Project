@@ -36,9 +36,15 @@ class SupabaseSavingRepository {
      */
     suspend fun getSavingPerformanceForMonth(userId: String, yearMonth: String): Result<SavingPerformance?> {
         return try {
+            android.util.Log.d("SavingRepository", "getSavingPerformanceForMonth - userId: $userId, yearMonth: $yearMonth")
+            
             // 해당 월의 예산 조회
             val monthlyBudget = authRepository.getMonthlyBudgetForMonth(yearMonth)?.toDouble()
-                ?: return Result.success(null) // 예산이 설정되지 않은 경우
+            if (monthlyBudget == null) {
+                android.util.Log.d("SavingRepository", "No budget found for $yearMonth, returning null")
+                return Result.success(null) // 예산이 설정되지 않은 경우
+            }
+            android.util.Log.d("SavingRepository", "Budget found: $monthlyBudget")
             
             // 해당 월의 지출 내역 조회
             val startDate = "$yearMonth-01"
@@ -50,6 +56,8 @@ class SupabaseSavingRepository {
             }
             
             val expenses = expensesResult.getOrNull() ?: emptyList()
+            android.util.Log.d("SavingRepository", "Found ${expenses.size} expenses")
+            
             val totalSpent = expenses.sumOf { it.amount }
             val totalSaved = monthlyBudget - totalSpent
             val savingRate = if (monthlyBudget > 0) (totalSaved / monthlyBudget).coerceIn(-1.0, 1.0) else 0.0
@@ -57,6 +65,8 @@ class SupabaseSavingRepository {
             // 카테고리별 지출 계산
             val categoryExpenses = expenses.groupBy { it.category }
                 .mapValues { (_, expenses) -> expenses.sumOf { it.amount } }
+            
+            android.util.Log.d("SavingRepository", "Category expenses: ${categoryExpenses.entries.joinToString { "${it.key}: ${it.value}" }}")
             
             // 카테고리별 절약 성과 계산
             val categorySavings = calculateCategorySavings(categoryExpenses, totalSpent, monthlyBudget)
@@ -91,14 +101,20 @@ class SupabaseSavingRepository {
     suspend fun getSavingPerformanceAsCategoryData(userId: String, yearMonth: String? = null): Result<List<CategoryData>> {
         return try {
             val targetYearMonth = yearMonth ?: getCurrentYearMonth()
+            android.util.Log.d("SavingRepository", "Getting data for userId: $userId, yearMonth: $targetYearMonth")
+            
             val performanceResult = getSavingPerformanceForMonth(userId, targetYearMonth)
             
             if (performanceResult.isFailure) {
+                android.util.Log.d("SavingRepository", "Performance result failed: ${performanceResult.exceptionOrNull()?.message}")
                 return Result.failure(performanceResult.exceptionOrNull() ?: Exception("절약 성과 조회 실패"))
             }
             
             val performance = performanceResult.getOrNull()
-                ?: return Result.success(getDefaultCategoryData()) // 데이터가 없으면 기본값 반환
+            if (performance == null) {
+                android.util.Log.d("SavingRepository", "Performance is null, returning default data")
+                return Result.success(getDefaultCategoryData()) // 데이터가 없으면 기본값 반환
+            }
             
             val categoryDataList = performance.categorySavings.map { categorySaving ->
                 CategoryData(
@@ -106,6 +122,11 @@ class SupabaseSavingRepository {
                     percentage = categorySaving.percentage,
                     color = categorySaving.color
                 )
+            }
+            
+            android.util.Log.d("SavingRepository", "Returning ${categoryDataList.size} categories")
+            categoryDataList.forEach { 
+                android.util.Log.d("SavingRepository", "Category: ${it.cg_name}, ${it.percentage}%")
             }
             
             Result.success(categoryDataList)

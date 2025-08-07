@@ -25,12 +25,12 @@ class MyApplication : Application() {
         val authRepository by lazy { SupabaseRepositoryManager.authRepository }
         val expenseRepository by lazy { SupabaseRepositoryManager.expenseRepository }
         val savingRepository by lazy { SupabaseSavingRepository() }
-        // userRepository removed - DB triggers handle profile creation automatically
         
         // Enhanced repositories
         val cachedPostRepository get() = repositoryManager.cachedPostRepository
         val postRepository get() = repositoryManager.postRepository
         val imageRepository get() = repositoryManager.imageRepository
+        val userRepository get() = repositoryManager.userRepository
         
         // Room database removed - migration to Supabase completed
     }

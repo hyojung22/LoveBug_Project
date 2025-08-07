@@ -80,6 +80,8 @@ class BoardDetailFragment : Fragment() {
         // 댓글 어댑터 초기화
         commentAdapter = CommentAdapter(
             currentUserId = currentUserUuid,
+            userRepository = MyApplication.repositoryManager.userRepository,
+            coroutineScope = lifecycleScope,
             onDeleteClick = { comment -> deleteComment(comment) },
             onUpdateClick = { comment, newContent -> updateComment(comment, newContent) },
             onListChanged = { count ->

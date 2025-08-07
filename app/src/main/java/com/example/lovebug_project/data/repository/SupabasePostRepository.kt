@@ -3,14 +3,77 @@ package com.example.lovebug_project.data.repository
 import com.example.lovebug_project.data.supabase.SupabaseClient
 import com.example.lovebug_project.data.supabase.models.Post
 import com.example.lovebug_project.data.supabase.models.Comment
+import com.example.lovebug_project.data.supabase.models.PostWithProfile
 import com.example.lovebug_project.utils.ErrorReporter
 import com.example.lovebug_project.utils.measureOperation
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Count
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 class SupabasePostRepository {
     private val supabase = SupabaseClient.client
+    private val userRepository = SupabaseUserRepository()
+    
+    /**
+     * 게시글 목록과 작성자 프로필 정보를 함께 조회 (최신순) - 페이지네이션 지원
+     */
+    suspend fun getAllPostsWithProfiles(limitCount: Int = 20, offset: Int = 0): Result<List<PostWithProfile>> {
+        return measureOperation("getAllPostsWithProfiles") {
+            try {
+                // 1. 먼저 모든 게시글을 가져옵니다
+                val posts = supabase.from("posts")
+                    .select {
+                        limit(limitCount.toLong())
+                        range(offset.toLong(), (offset + limitCount - 1).toLong())
+                    }
+                    .decodeList<Post>()
+                    .sortedByDescending { it.postId }
+
+                // 2. 각 게시글의 작성자 프로필 정보를 병렬로 가져옵니다
+                val postsWithProfiles = coroutineScope {
+                    posts.map { post ->
+                        async {
+                            val userProfile = userRepository.getUserProfile(post.userId)
+                            PostWithProfile(
+                                postId = post.postId,
+                                userId = post.userId,
+                                title = post.title,
+                                content = post.content,
+                                imageUrl = post.image,
+                                imagePath = null, // Post 모델에는 imagePath가 없음
+                                createdAt = post.createdAt,
+                                updatedAt = post.updatedAt,
+                                nickname = userProfile?.nickname ?: "알 수 없는 사용자",
+                                avatarUrl = userProfile?.avatarUrl
+                            )
+                        }
+                    }.awaitAll()
+                }
+
+                ErrorReporter.trackPerformance(
+                    operationName = "getAllPostsWithProfiles",
+                    duration = 0,
+                    success = true,
+                    recordCount = postsWithProfiles.size
+                )
+
+                Result.success(postsWithProfiles)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "getAllPostsWithProfiles",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "limit" to limitCount,
+                        "offset" to offset
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
     
     /**
      * 게시글 목록 조회 (최신순) - 페이지네이션 지원

@@ -15,6 +15,7 @@ import com.example.lovebug_project.MainActivity
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.db.entity.PostWithExtras
+import com.example.lovebug_project.data.supabase.models.PostWithProfile
 import com.example.lovebug_project.databinding.FragmentBoardMainBinding
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -209,14 +210,14 @@ class BoardMainFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val repositoryManager = MyApplication.repositoryManager
-                val result = repositoryManager.cachedPostRepository.getAllPosts(
+                val result = repositoryManager.cachedPostRepository.getAllPostsWithProfiles(
                     limit = 50,
                     offset = 0,
                     forceRefresh = true // Force refresh to ensure we get latest posts
                 )
                 
                 result.fold(
-                    onSuccess = { supabasePosts ->
+                    onSuccess = { postsWithProfiles ->
                         // Get current user info to extract nickname
                         val currentUserInfo = AuthHelper.getCurrentUserInfo()
                         val currentUserId = AuthHelper.getSupabaseUserId(requireContext())
@@ -224,27 +225,27 @@ class BoardMainFragment : Fragment() {
                             if (it is JsonPrimitive && it.isString) it.content else "내 게시글"
                         } ?: "내 게시글"
                         
-                        // Convert Supabase Posts to PostWithExtras and sort by postId descending (newest first)
-                        val postWithExtrasList = supabasePosts.map { supabasePost ->
-                            // Determine nickname based on whether it's current user's post or not
-                            val displayNickname = if (supabasePost.userId == currentUserId) {
+                        // Convert PostWithProfile to PostWithExtras and sort by postId descending (newest first)
+                        val postWithExtrasList = postsWithProfiles.map { postWithProfile ->
+                            // Use the actual nickname from the profile, but override for current user
+                            val displayNickname = if (postWithProfile.userId == currentUserId) {
                                 currentUserNickname
                             } else {
-                                "다른 사용자"
+                                postWithProfile.nickname ?: "알 수 없는 사용자"
                             }
                             
                             // Create PostWithExtras with Room Post entity
                             PostWithExtras(
                                 post = com.example.lovebug_project.data.db.entity.Post(
-                                    postId = supabasePost.postId,
-                                    userId = supabasePost.userId.hashCode(), // Temporary conversion
-                                    title = supabasePost.title,
-                                    content = supabasePost.content,
-                                    image = supabasePost.image,
-                                    createdAt = supabasePost.createdAt
+                                    postId = postWithProfile.postId,
+                                    userId = postWithProfile.userId.hashCode(), // Temporary conversion
+                                    title = postWithProfile.title,
+                                    content = postWithProfile.content,
+                                    image = postWithProfile.imageUrl,
+                                    createdAt = postWithProfile.createdAt
                                 ),
                                 nickname = displayNickname,
-                                profileImage = null,
+                                profileImage = postWithProfile.avatarUrl,
                                 likeCount = 0, // Default values - will be fetched separately later
                                 commentCount = 0,
                                 isLiked = false,

@@ -49,17 +49,47 @@ class SupabaseExpenseRepository {
      */
     suspend fun getExpensesByDateRange(userId: String, startDate: String, endDate: String): Result<List<Expense>> {
         return try {
+            android.util.Log.d("ExpenseRepository", "getExpensesByDateRange - userId: $userId, startDate: $startDate, endDate: $endDate")
+            android.util.Log.d("ExpenseRepository", "Using filters: gte(expense_date, $startDate) AND lte(expense_date, $endDate)")
+            
             val expenses = supabase.postgrest.from("expenses")
                 .select {
                     filter {
                         eq("user_id", userId)
-                        gte("expense_date", startDate)
-                        lte("expense_date", endDate)
+                        gte("expense_date", startDate)  // >= startDate
+                        lte("expense_date", endDate)    // <= endDate
                     }
                 }
                 .decodeList<Expense>()
+                
+            android.util.Log.d("ExpenseRepository", "Query returned ${expenses.size} expenses")
+            
+            // 검증: 반환된 데이터가 실제로 날짜 범위에 포함되는지 확인
+            var validCount = 0
+            var invalidCount = 0
+            
+            expenses.forEach { expense ->
+                val expenseDate = expense.date
+                val isInRange = expenseDate >= startDate && expenseDate <= endDate
+                
+                android.util.Log.d("ExpenseRepository", "Expense: id=${expense.expenseId}, date=${expenseDate}, category=${expense.category}, amount=${expense.amount}, inRange=${isInRange}")
+                
+                if (isInRange) {
+                    validCount++
+                } else {
+                    invalidCount++
+                    android.util.Log.w("ExpenseRepository", "⚠️ INVALID: Expense id=${expense.expenseId} with date=${expenseDate} is outside range [$startDate, $endDate]")
+                }
+            }
+            
+            android.util.Log.d("ExpenseRepository", "Validation: ${validCount} valid, ${invalidCount} invalid expenses")
+            if (invalidCount > 0) {
+                android.util.Log.e("ExpenseRepository", "🚨 DATE FILTER NOT WORKING: ${invalidCount} expenses outside date range were returned!")
+            }
+            
             Result.success(expenses)
         } catch (e: Exception) {
+            android.util.Log.e("ExpenseRepository", "Error in getExpensesByDateRange", e)
             Result.failure(e)
         }
     }

@@ -60,10 +60,8 @@ class SavingPerformFragment : Fragment() {
         // RecyclerView 초기 설정
         binding.rvCategory.layoutManager = LinearLayoutManager(requireContext())
 
-        // 전달받은 데이터가 있을 경우 초기 설정
-        categoryList?.let { initialData ->
-            updateUIWithData(initialData)
-        }
+        // 초기 데이터 로드 (전달받은 데이터가 있어도 현재 월 데이터를 로드)
+        loadSavingDataForCurrentMonth()
 
         // 날짜 관련 설정
         updateDateText()
@@ -97,13 +95,31 @@ class SavingPerformFragment : Fragment() {
                 val dateFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
                 val yearMonth = dateFormat.format(currentCalendar.time)
                 
+                // 디버깅용 로그
+                android.util.Log.d("SavingPerform", "Loading data for: $yearMonth")
+                
                 // 절약성과 데이터 조회
                 val result = MyApplication.savingRepository.getSavingPerformanceAsCategoryData(userId, yearMonth)
                 
                 withContext(Dispatchers.Main) {
                     result.fold(
                         onSuccess = { categoryDataList ->
-                            updateUIWithData(categoryDataList)
+                            // 디버깅용 로그
+                            android.util.Log.d("SavingPerform", "Received data size: ${categoryDataList.size}")
+                            categoryDataList.forEach { category ->
+                                android.util.Log.d("SavingPerform", "Category: ${category.cg_name}, Percentage: ${category.percentage}%")
+                            }
+                            
+                            if (categoryDataList.isEmpty()) {
+                                // 데이터가 비어있을 때
+                                android.util.Log.d("SavingPerform", "Empty data, showing default")
+                                val defaultCategoryList = listOf(
+                                    CategoryData("데이터 없음", 100, "#E0E0E0")
+                                )
+                                updateUIWithData(defaultCategoryList)
+                            } else {
+                                updateUIWithData(categoryDataList)
+                            }
                         },
                         onFailure = { exception ->
                             // 에러 발생 시 기본 데이터로 표시

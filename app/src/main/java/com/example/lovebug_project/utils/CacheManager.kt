@@ -212,7 +212,8 @@ class CacheManager private constructor(private val context: Context) {
  * Cache key generators for consistent naming
  */
 object CacheKeys {
-    fun postsList(limit: Int, offset: Int) = "posts_list_${limit}_$offset"
+    fun postsList(limit: Int, offset: Int, suffix: String = "") = 
+        if (suffix.isNotEmpty()) "posts_list_${limit}_${offset}_$suffix" else "posts_list_${limit}_$offset"
     fun post(postId: Int) = "post_$postId"
     fun userPosts(userId: String) = "user_posts_$userId"
     fun postsCount() = "posts_count"

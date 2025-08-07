@@ -2,6 +2,7 @@ package com.example.lovebug_project.data.repository
 
 import android.content.Context
 import com.example.lovebug_project.data.supabase.models.Post
+import com.example.lovebug_project.data.supabase.models.PostWithProfile
 import com.example.lovebug_project.utils.CacheKeys
 import com.example.lovebug_project.utils.CacheManager
 import com.example.lovebug_project.utils.ErrorReporter
@@ -55,6 +56,52 @@ class CachedPostRepository(context: Context) {
             } catch (e: Exception) {
                 ErrorReporter.logSupabaseError(
                     "getAllPosts-Cached",
+                    e,
+                    ErrorReporter.createContext(
+                        "limit" to limit,
+                        "offset" to offset,
+                        "forceRefresh" to forceRefresh
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * Get all posts with profiles using intelligent caching
+     */
+    suspend fun getAllPostsWithProfiles(
+        limit: Int = 20,
+        offset: Int = 0,
+        forceRefresh: Boolean = false
+    ): Result<List<PostWithProfile>> {
+        val cacheKey = CacheKeys.postsList(limit, offset, "with_profiles")
+        
+        return if (forceRefresh) {
+            // Force refresh - fetch fresh data and update cache
+            val result = supabaseRepo.getAllPostsWithProfiles(limit, offset)
+            if (result.isSuccess) {
+                result.getOrNull()?.let { posts ->
+                    cache.put(cacheKey, posts, POSTS_CACHE_TTL)
+                }
+            }
+            result
+        } else {
+            try {
+                // Try cache first, fallback to network
+                val cachedPosts = cache.getOrPut(cacheKey, POSTS_CACHE_TTL) {
+                    val networkResult = supabaseRepo.getAllPostsWithProfiles(limit, offset)
+                    if (networkResult.isFailure) {
+                        throw networkResult.exceptionOrNull() 
+                            ?: Exception("Failed to fetch posts with profiles from network")
+                    }
+                    networkResult.getOrThrow()
+                }
+                Result.success(cachedPosts)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    "getAllPostsWithProfiles-Cached",
                     e,
                     ErrorReporter.createContext(
                         "limit" to limit,

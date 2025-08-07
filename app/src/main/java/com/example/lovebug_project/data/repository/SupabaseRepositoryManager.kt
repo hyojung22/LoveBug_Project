@@ -21,12 +21,12 @@ class SupabaseRepositoryManager private constructor(context: Context) {
         // Legacy access for backward compatibility - lazy to prevent initialization issues
         val authRepository by lazy { SupabaseAuthRepository() }
         val expenseRepository by lazy { SupabaseExpenseRepository() }
-        // userRepository removed - DB triggers handle profile creation automatically
     }
     
     // Enhanced repositories with caching
     val cachedPostRepository = CachedPostRepository(context)
     val imageRepository = SupabaseImageRepository()
+    val userRepository = SupabaseUserRepository()
     
     // Direct access repositories
     val postRepository = SupabasePostRepository()
