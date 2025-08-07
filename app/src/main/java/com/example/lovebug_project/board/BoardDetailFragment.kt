@@ -13,6 +13,10 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.os.bundleOf
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.bumptech.glide.Glide
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
@@ -124,15 +128,32 @@ class BoardDetailFragment : Fragment() {
 
         binding.tvNick.text = postExtra.nickname
 
-        // 현재 좋아요 상태 불러오기
-        var isLiked = likeDao.isPostLikedByUser(currentUserId, postExtra.post.postId)
-        var likeCount = likeDao.getLikeCountByPost(postExtra.post.postId)
-
+        // 좋아요 상태 변수 초기화
+        var isLiked = false
+        var likeCount = 0
+        
         // 기본 텍스트 및 이미지 세팅
-        binding.tvLike.text = likeCount.toString()
         binding.tvComment.text = postExtra.commentCount.toString()
         binding.etContent.setText(postExtra.post.content)
-        binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
+        
+        // 현재 좋아요 상태 불러오기 (코루틴으로 개선)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                isLiked = likeDao.isPostLikedByUser(currentUserId, postExtra.post.postId)
+                likeCount = likeDao.getLikeCountByPost(postExtra.post.postId)
+                
+                withContext(Dispatchers.Main) {
+                    binding.tvLike.text = likeCount.toString()
+                    binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
+                }
+            } catch (e: Exception) {
+                // 에러 발생 시 기본값으로 설정
+                withContext(Dispatchers.Main) {
+                    binding.tvLike.text = "0"
+                    binding.imgLike.setImageResource(R.drawable.like_off)
+                }
+            }
+        }
 
         // 게시물 이미지
         if (!postExtra.post.image.isNullOrEmpty()) {
@@ -144,29 +165,56 @@ class BoardDetailFragment : Fragment() {
             binding.imgBoard.setImageResource(R.drawable.ic_launcher_background)
         }
 
-        // 좋아요 버튼 클릭 이벤트
+        // 좋아요 버튼 클릭 이벤트 (코루틴 기반으로 개선)
         binding.imgLike.setOnClickListener {
-            if (isLiked) {
-                likeDao.deleteLike(currentUserId, postExtra.post.postId)
-                likeCount--
-            } else {
-                likeDao.insert(Like(postId = postExtra.post.postId, userId = currentUserId))
-                likeCount++
-            }
-            isLiked = !isLiked
-
-            // UI 즉시 반영
-            binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
-            binding.tvLike.text = likeCount.toString()
-
-            // ✅ 목록 화면에 결과 전달
-            parentFragmentManager.setFragmentResult(
-                "likeUpdate",
-                Bundle().apply {
-                    putInt("postId", postExtra.post.postId)
-                    putBoolean("isLiked", isLiked)
+            // 중복 클릭 방지
+            binding.imgLike.isEnabled = false
+            
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val newIsLiked: Boolean
+                    if (isLiked) {
+                        likeDao.deleteLike(currentUserId, postExtra.post.postId)
+                        newIsLiked = false
+                    } else {
+                        likeDao.insert(Like(postId = postExtra.post.postId, userId = currentUserId))
+                        newIsLiked = true
+                    }
+                    
+                    // 최신 좋아요 수 가져오기
+                    val newLikeCount = likeDao.getLikeCountByPost(postExtra.post.postId)
+                    
+                    // UI 스레드에서 UI 업데이트
+                    withContext(Dispatchers.Main) {
+                        isLiked = newIsLiked
+                        likeCount = newLikeCount
+                        
+                        // UI 반영
+                        binding.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
+                        binding.tvLike.text = likeCount.toString()
+                        
+                        // 목록 화면에 결과 전달
+                        parentFragmentManager.setFragmentResult(
+                            "likeUpdate",
+                            Bundle().apply {
+                                putInt("postId", postExtra.post.postId)
+                                putBoolean("isLiked", isLiked)
+                                putInt("likeCount", likeCount)
+                            }
+                        )
+                        
+                        // 버튼 다시 활성화
+                        binding.imgLike.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    // 에러 발생 시 UI 스레드에서 처리
+                    withContext(Dispatchers.Main) {
+                        binding.imgLike.isEnabled = true
+                        // 에러 메시지 표시 (선택적)
+                        // Toast.makeText(requireContext(), "좋아요 처리 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            )
+            }
         }
 
         // 상단 프로필 이미지

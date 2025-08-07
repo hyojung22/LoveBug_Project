@@ -10,12 +10,20 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "chat_messages",
-    foreignKeys = [ForeignKey(
-        entity = Chat::class,
-        parentColumns = ["chatId"],
-        childColumns = ["chatId"],
-        onDelete = ForeignKey.CASCADE
-    )]
+    foreignKeys = [
+        ForeignKey(
+            entity = Chat::class,
+            parentColumns = ["chatId"],
+            childColumns = ["chatId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["userId"],
+            childColumns = ["senderId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
 )
 data class ChatMessage(
     @PrimaryKey(autoGenerate = true) val messageId: Int = 0,

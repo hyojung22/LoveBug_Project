@@ -21,6 +21,8 @@ import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.db.entity.Expense
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
@@ -219,8 +221,10 @@ class HomeFragment : Fragment() {
                 // 데이터베이스 쿼리를 위한 "YYYY-MM" 형식의 월 문자열 가져오기
                 val monthString = currentMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
                 
-                // 데이터베이스에서 현재 월의 지출 내역 로드
-                val expenses = database.expenseDao().getExpenseByMonth(currentUserId, monthString)
+                // 데이터베이스에서 현재 월의 지출 내역 로드 (IO 스레드에서 실행)
+                val expenses = withContext(Dispatchers.IO) {
+                    database.expenseDao().getExpenseByMonth(currentUserId, monthString)
+                }
                 
                 // 현재 데이터를 초기화하고 일별 총계 계산
                 expenseData.clear()

@@ -16,6 +16,10 @@ import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.db.entity.PostWithExtras
 import com.example.lovebug_project.databinding.FragmentBoardMainBinding
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class BoardMainFragment : Fragment() {
 
@@ -201,44 +205,54 @@ class BoardMainFragment : Fragment() {
     }
 
     private fun loadPostFromDB() {
-        val postDao = MyApplication.database.postDao()
-        val userDao = MyApplication.database.userDao()
-        val likeDao = MyApplication.database.likeDao()
-        val commentDao = MyApplication.database.commentDao()
-        val bookmarkDao = MyApplication.database.bookmarkDao()
+        lifecycleScope.launch {
+            try {
+                val postDao = MyApplication.database.postDao()
+                val userDao = MyApplication.database.userDao()
+                val likeDao = MyApplication.database.likeDao()
+                val commentDao = MyApplication.database.commentDao()
+                val bookmarkDao = MyApplication.database.bookmarkDao()
 
-        val posts = postDao.getAllPosts()
+                // IO 스레드에서 데이터베이스 작업 수행
+                val postWithExtrasList = withContext(Dispatchers.IO) {
+                    val posts = postDao.getAllPosts()
+                    val currentUserId = getLoggedInUserId() // 예시로 현재 로그인된 유저 ID
 
-        val currentUserId = getLoggedInUserId() // 예시로 현재 로그인된 유저 ID
+                    posts.map { post ->
+                        val nickname = userDao.getUserById(post.userId)?.nickname ?: "알 수 없음"
+                        val likeCount = likeDao.getLikeCountByPost(post.postId)
+                        val commentCount = commentDao.getCommentCountByPost(post.postId)
+                        // 내가 쓴 글이 아니라면 북마크 여부 확인
+                        val isBookmarked = if (post.userId != currentUserId) {
+                            bookmarkDao.isPostBookmarkedByUser(currentUserId, post.postId)
+                        } else {
+                            false
+                        }
 
-        val postWithExtrasList = posts.map { post ->
-            val nickname = userDao.getUserById(post.userId)?.nickname ?: "알 수 없음"
-            val likeCount = likeDao.getLikeCountByPost(post.postId)
-            val commentCount = commentDao.getCommentCountByPost(post.postId)
-            // 내가 쓴 글이 아니라면 북마크 여부 확인
-            val isBookmarked = if (post.userId != currentUserId) {
-                bookmarkDao.isPostBookmarkedByUser(currentUserId, post.postId)
-            } else {
-                false
+                        PostWithExtras(
+                            post = post,
+                            nickname = nickname,
+                            profileImage = null,
+                            likeCount = likeCount,
+                            commentCount = commentCount,
+                            isBookmarked = isBookmarked
+                        )
+                    }
+                }
+
+                // UI 업데이트는 메인 스레드에서 수행
+                boardAdapter.setPosts(postWithExtrasList)
+                fullPostList.clear()
+                fullPostList.addAll(postWithExtrasList) // 필터링용 원본 유지
+
+                binding.rvBoard.visibility = if (postWithExtrasList.isEmpty()) View.GONE else View.VISIBLE
+                binding.tvNoBoard.visibility = if (postWithExtrasList.isEmpty()) View.VISIBLE else View.GONE
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // 에러 처리 (필요시 사용자에게 알림)
             }
-
-            PostWithExtras(
-                post = post,
-                nickname = nickname,
-                profileImage = null,
-                likeCount = likeCount,
-                commentCount = commentCount,
-                isBookmarked = isBookmarked
-            )
         }
-
-        boardAdapter.setPosts(postWithExtrasList)
-        fullPostList.clear()
-        fullPostList.addAll(postWithExtrasList) // 필터링용 원본 유지
-
-        binding.rvBoard.visibility = if (posts.isEmpty()) View.GONE else View.VISIBLE
-        binding.tvNoBoard.visibility = if (posts.isEmpty()) View.VISIBLE else View.GONE
-
     }
 
     private fun getLoggedInUserId(): Int {

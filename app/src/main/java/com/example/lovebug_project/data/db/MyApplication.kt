@@ -4,7 +4,8 @@ import android.app.Application
 import androidx.room.Room
 import com.example.lovebug_project.data.db.entity.Post
 import com.example.lovebug_project.data.db.entity.User
-import kotlin.text.insert
+import com.example.lovebug_project.data.repository.DatabaseRepository
+import java.util.concurrent.Executors
 
 /**
  * 앱 전체에서 사용할 Room DB 인스턴스를 전역으로 관리하는 Application 클래스
@@ -12,6 +13,9 @@ import kotlin.text.insert
 class MyApplication : Application() {
     companion object {
         lateinit var database: AppDatabase
+            private set
+        
+        lateinit var repository: DatabaseRepository
             private set
     }
 
@@ -24,11 +28,16 @@ class MyApplication : Application() {
             AppDatabase::class.java,
             "lovebug.db" // 실제 생성된 DB 파일 이름
         )
-            .allowMainThreadQueries() // 메인 스레드에서 DB 접근 허용
             .fallbackToDestructiveMigration() // 버전 변경 시 기존 DB 삭제
             .build()
 
-        insertTestDataIfNeeded()
+        // Repository 인스턴스 초기화
+        repository = DatabaseRepository.getInstance(database)
+
+        // 백그라운드 스레드에서 테스트 데이터 삽입
+        Executors.newSingleThreadExecutor().execute {
+            insertTestDataIfNeeded()
+        }
     }
 
     private fun insertTestDataIfNeeded() {

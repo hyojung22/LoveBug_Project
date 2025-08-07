@@ -62,62 +62,51 @@ class BoardWriteActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // 현재 로그인 유저 ID
+            // 현재 로그인 유저 ID 검증
             val currentUserId = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
                 .getInt("userId", -1)
-
-            // 작성 시간 (형식 : yyyy-MM-dd HH:mm)
-            val now = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
-
-            // Post 객체 생성
-            val newPost = Post(
-                userId = currentUserId,
-                title = title,
-                content = content,
-                image = selectedImageUri?.toString(), // 이미지 URI 저장
-                createdAt = now
-            )
-
-            val postDao = MyApplication.database.postDao()
-            // Insert하고 반환된 ID를 받음
-            val newId = postDao.insert(newPost).toInt()
-            // 그 ID로 방금 저장한 글을 조회
-
-            // 저장된 최신 글 가져오기
-            val savedPost = postDao.getPostById(newId) ?: return@setOnClickListener
-
-            val userDao = MyApplication.database.userDao()
-            val nickname = userDao.getUserById(savedPost.userId)?.nickname ?: "알 수 없음"
-
-            val likeDao = MyApplication.database.likeDao()
-            val commentDao = MyApplication.database.commentDao()
-
-            val postWithExtras = PostWithExtras(
-                post = savedPost,
-                nickname = nickname,
-                profileImage = null,
-                likeCount = likeDao.getLikeCountByPost(savedPost.postId),
-                commentCount = commentDao.getCommentCountByPost(savedPost.postId),
-                isBookmarked = false
-            )
-
-//            val intent = Intent(this, MainActivity::class.java).apply {
-//                putExtra("navigateToBoard", true)
-//            }
-//            startActivity(intent)
-//            finish()
-
-            // 상세 페이지로 이동
-            val fragment = BoardDetailFragment().apply {
-                arguments = Bundle().apply {
-                    putSerializable("postExtra", postWithExtras)
-                }
+            
+            if (currentUserId == -1) {
+                Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.frame2, fragment) // FrameLayout ID 확인 필요
-                .addToBackStack(null)
-                .commit()
+            try {
+                // 작성 시간 (형식 : yyyy-MM-dd HH:mm)
+                val now = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+
+                // Post 객체 생성
+                val newPost = Post(
+                    userId = currentUserId,
+                    title = title,
+                    content = content,
+                    image = selectedImageUri?.toString(), // 이미지 URI 저장
+                    createdAt = now
+                )
+
+                val postDao = MyApplication.database.postDao()
+                // Insert하고 반환된 ID를 받음
+                val newId = postDao.insert(newPost).toInt()
+                
+                // 성공 메시지
+                Toast.makeText(this, "게시글이 등록되었습니다.", Toast.LENGTH_SHORT).show()
+                
+                // MainActivity로 돌아가면서 게시판 탭으로 이동
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    putExtra("navigateToBoard", true)
+                    putExtra("newPostId", newId)
+                    // FLAG_CLEAR_TOP을 사용해 기존 MainActivity 인스턴스를 재사용
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                finish()
+                
+            } catch (e: Exception) {
+                // 데이터베이스 오류 처리
+                Toast.makeText(this, "게시글 등록 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
+                // 로그 출력 (개발용)
+                e.printStackTrace()
+            }
         }
     }
 

@@ -9,6 +9,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import java.util.concurrent.Executors
+import android.os.Handler
+import android.os.Looper
 import com.example.lovebug_project.R
 import com.example.lovebug_project.data.db.MyApplication
 import com.example.lovebug_project.data.db.entity.Like
@@ -19,6 +22,11 @@ class BoardAdapter(
     private val onItemClick: (PostWithExtras) -> Unit
 ) : RecyclerView.Adapter<BoardAdapter.BoardViewHolder>() {
     private var postList: List<PostWithExtras> = emptyList()
+    
+    companion object {
+        private val backgroundExecutor = Executors.newFixedThreadPool(2)
+        private val mainHandler = Handler(Looper.getMainLooper())
+    }
 
     fun setPosts(posts: List<PostWithExtras>) {
         this.postList = posts
@@ -83,26 +91,66 @@ class BoardAdapter(
             holder.imgBoard.setImageResource(R.drawable.ic_launcher_background)
         }
 
-        // 좋아요 상태 가져오기
-        val likeDao = MyApplication.database.likeDao()
-        var isLiked = likeDao.isPostLikedByUser(currentUserId, post.postId)
-        updateLikeUI(holder, isLiked, likeDao.getLikeCountByPost(post.postId))
-
-        // 좋아요 버튼 클릭
-        holder.imgLike.setOnClickListener {
-            if (isLiked) {
-                // 좋아요 취소
-                likeDao.deleteLike(currentUserId, post.postId)
-            } else {
-                // 좋아요 추가
-                likeDao.insert(Like(postId = post.postId, userId = currentUserId))
+        // 좋아요 상태를 백그라운드에서 불러오기
+        var isLiked = false
+        var likeCount = 0
+        
+        // 초기 로딩 상태 설정 (기본값)
+        updateLikeUI(holder, false, postExtra.likeCount)
+        
+        backgroundExecutor.execute {
+            try {
+                val likeDao = MyApplication.database.likeDao()
+                val currentIsLiked = likeDao.isPostLikedByUser(currentUserId, post.postId)
+                val currentLikeCount = likeDao.getLikeCountByPost(post.postId)
+                
+                mainHandler.post {
+                    isLiked = currentIsLiked
+                    likeCount = currentLikeCount
+                    updateLikeUI(holder, isLiked, likeCount)
+                }
+            } catch (e: Exception) {
+                // 에러 시 기본값 유지
+                mainHandler.post {
+                    updateLikeUI(holder, false, postExtra.likeCount)
+                }
             }
-            // 상태 반전
-            isLiked = !isLiked
+        }
 
-            // DB에서 최신 개수 가져와서 UI 업데이트
-            val newCount = likeDao.getLikeCountByPost(post.postId)
-            updateLikeUI(holder, isLiked, newCount)
+        // 좋아요 버튼 클릭 (백그라운드 처리)
+        holder.imgLike.setOnClickListener {
+            // 중복 클릭 방지
+            holder.imgLike.isEnabled = false
+            
+            backgroundExecutor.execute {
+                try {
+                    val likeDao = MyApplication.database.likeDao()
+                    val newIsLiked: Boolean
+                    
+                    if (isLiked) {
+                        likeDao.deleteLike(currentUserId, post.postId)
+                        newIsLiked = false
+                    } else {
+                        likeDao.insert(Like(postId = post.postId, userId = currentUserId))
+                        newIsLiked = true
+                    }
+                    
+                    val newCount = likeDao.getLikeCountByPost(post.postId)
+                    
+                    mainHandler.post {
+                        isLiked = newIsLiked
+                        likeCount = newCount
+                        updateLikeUI(holder, isLiked, newCount)
+                        holder.imgLike.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    mainHandler.post {
+                        holder.imgLike.isEnabled = true
+                        // 에러 발생 시 원래 상태 복구
+                        updateLikeUI(holder, isLiked, likeCount)
+                    }
+                }
+            }
         }
 
         // 클릭 시 이벤트
