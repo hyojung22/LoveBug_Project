@@ -6,13 +6,20 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.lovebug_project.databinding.FragmentSavingPerformBinding
+import com.example.lovebug_project.data.db.MyApplication
+import com.example.lovebug_project.utils.AuthHelper
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
 import com.github.mikephil.charting.utils.ColorTemplate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,11 +30,14 @@ class SavingPerformFragment : Fragment() {
 
     private var categoryList : List<CategoryData>? = null
     private var currentCalendar: Calendar = Calendar.getInstance()
+    private var currentUserId: String? = null
+    private var categoryAdapter: CategoryAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
             categoryList = it.getSerializable("categoryList") as? List<CategoryData>
+            currentUserId = it.getString("userId")
         }
     }
 
@@ -42,15 +52,17 @@ class SavingPerformFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 전달받은 데이터가 있을 경우에만 차트와 리스트를 설정
-        categoryList?.let {
-            // RecyclerView 설정
-            val categoryAdapter = CategoryAdapter(it)
-            binding.rvCategory.adapter = categoryAdapter
-            binding.rvCategory.layoutManager = LinearLayoutManager(requireContext())
+        // 현재 사용자 ID 가져오기 (arguments가 우선, 없으면 AuthHelper에서)
+        if (currentUserId == null) {
+            currentUserId = AuthHelper.getSupabaseUserId(requireContext())
+        }
+        
+        // RecyclerView 초기 설정
+        binding.rvCategory.layoutManager = LinearLayoutManager(requireContext())
 
-            // PieChart 설정
-            setupPieChart(it)
+        // 전달받은 데이터가 있을 경우 초기 설정
+        categoryList?.let { initialData ->
+            updateUIWithData(initialData)
         }
 
         // 날짜 관련 설정
@@ -58,16 +70,66 @@ class SavingPerformFragment : Fragment() {
         binding.imageView2.setOnClickListener {
             currentCalendar.add(Calendar.MONTH, 1)
             updateDateText()
+            loadSavingDataForCurrentMonth()
         }
         binding.imageView3.setOnClickListener {
             currentCalendar.add(Calendar.MONTH, -1)
             updateDateText()
+            loadSavingDataForCurrentMonth()
         }
     }
 
     private fun updateDateText() {
         val sdf = SimpleDateFormat("yyyy년 M월", Locale.KOREA)
         binding.date.text = sdf.format(currentCalendar.time)
+    }
+    
+    private fun loadSavingDataForCurrentMonth() {
+        val userId = currentUserId
+        if (userId == null) {
+            Toast.makeText(requireContext(), "사용자 정보를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 현재 선택된 월의 YYYY-MM 형식 문자열 생성
+                val dateFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+                val yearMonth = dateFormat.format(currentCalendar.time)
+                
+                // 절약성과 데이터 조회
+                val result = MyApplication.savingRepository.getSavingPerformanceAsCategoryData(userId, yearMonth)
+                
+                withContext(Dispatchers.Main) {
+                    result.fold(
+                        onSuccess = { categoryDataList ->
+                            updateUIWithData(categoryDataList)
+                        },
+                        onFailure = { exception ->
+                            // 에러 발생 시 기본 데이터로 표시
+                            val defaultCategoryList = listOf(
+                                CategoryData("데이터 없음", 100, "#E0E0E0")
+                            )
+                            updateUIWithData(defaultCategoryList)
+                            Toast.makeText(requireContext(), "데이터 로딩 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "데이터 로딩 중 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
+    private fun updateUIWithData(categories: List<CategoryData>) {
+        // RecyclerView 업데이트 (항상 새 어댑터 생성)
+        categoryAdapter = CategoryAdapter(categories)
+        binding.rvCategory.adapter = categoryAdapter
+
+        // PieChart 업데이트
+        setupPieChart(categories)
     }
 
     private fun setupPieChart(categories: List<CategoryData>) {
@@ -105,10 +167,11 @@ class SavingPerformFragment : Fragment() {
 
     companion object {
         @JvmStatic
-        fun newInstance(list: List<CategoryData>) =
+        fun newInstance(list: List<CategoryData>, userId: String? = null) =
             SavingPerformFragment().apply {
                 arguments = Bundle().apply {
                     putSerializable("categoryList", ArrayList(list))
+                    userId?.let { putString("userId", it) }
                 }
             }
     }

@@ -44,17 +44,7 @@ class MypageFragment : Fragment() {
         
         // 절약성과 클릭 이벤트
         binding.constraintLayout2.setOnClickListener {
-            val categoryListToPass = listOf(
-                CategoryData("식비", 45, "#FFC3A0"),   // 주황색
-                CategoryData("교통", 25, "#A3D6E3"),   // 파란색
-                CategoryData("쇼핑", 15, "#C9E4A6"),   // 녹색
-                CategoryData("기타", 15, "#E4B4D1")    // 분홍색
-            )
-            parentFragmentManager.commit {
-                setReorderingAllowed(true)
-                replace(R.id.fragment_container, SavingPerformFragment.newInstance(categoryListToPass))
-                addToBackStack(null)
-            }
+            loadSavingPerformanceData()
         }
         
         // 북마크 클릭 이벤트
@@ -75,6 +65,12 @@ class MypageFragment : Fragment() {
         // 로그아웃 클릭 이벤트
         binding.btnLogout.setOnClickListener {
             performLogout()
+        }
+        
+        // 예산 설정 클릭 이벤트 (기존 로그아웃 버튼을 길게 눌러 예산 설정)
+        binding.btnLogout.setOnLongClickListener {
+            showBudgetSettingDialog()
+            true
         }
         
         // 탈퇴하기 클릭 이벤트
@@ -137,6 +133,53 @@ class MypageFragment : Fragment() {
         }
     }
     
+    private fun loadSavingPerformanceData() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 현재 로그인한 사용자 ID 가져오기
+                val currentUserUuid = AuthHelper.getSupabaseUserId(requireContext())
+                
+                if (currentUserUuid != null) {
+                    // 절약성과 데이터 조회
+                    val result = MyApplication.savingRepository.getSavingPerformanceAsCategoryData(currentUserUuid)
+                    
+                    withContext(Dispatchers.Main) {
+                        result.fold(
+                            onSuccess = { categoryDataList ->
+                                // SavingPerformFragment로 이동 (사용자 ID도 전달)
+                                parentFragmentManager.commit {
+                                    setReorderingAllowed(true)
+                                    replace(R.id.fragment_container, SavingPerformFragment.newInstance(categoryDataList, currentUserUuid))
+                                    addToBackStack(null)
+                                }
+                            },
+                            onFailure = { exception ->
+                                // 에러 발생 시 기본 데이터로 표시
+                                val defaultCategoryList = listOf(
+                                    CategoryData("데이터 없음", 100, "#E0E0E0")
+                                )
+                                parentFragmentManager.commit {
+                                    setReorderingAllowed(true)
+                                    replace(R.id.fragment_container, SavingPerformFragment.newInstance(defaultCategoryList, currentUserUuid))
+                                    addToBackStack(null)
+                                }
+                                Toast.makeText(requireContext(), "절약성과 데이터를 불러오는데 실패했습니다: ${exception.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "절약성과 로딩 중 오류 발생: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
     private fun showEditProfileDialog() {
         val currentNickname = binding.textView3.text.toString()
         
@@ -184,6 +227,66 @@ class MypageFragment : Fragment() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(requireContext(), "닉네임 변경 중 오류 발생: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
+    private fun showBudgetSettingDialog() {
+        // 현재 예산 조회
+        val currentBudget = MyApplication.authRepository.getUserMonthlyBudget()
+        
+        val editText = EditText(requireContext()).apply {
+            setText(currentBudget?.toString() ?: "")
+            hint = "월별 예산을 입력하세요 (원)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setPadding(50, 30, 50, 30)
+        }
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("월별 예산 설정")
+            .setMessage("이번 달 목표 지출 금액을 설정하세요")
+            .setView(editText)
+            .setPositiveButton("확인") { _, _ ->
+                val budgetText = editText.text.toString().trim()
+                if (budgetText.isNotEmpty()) {
+                    val budget = budgetText.toIntOrNull()
+                    if (budget != null && budget > 0) {
+                        updateMonthlyBudget(budget)
+                    } else {
+                        Toast.makeText(requireContext(), "올바른 금액을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "예산을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+    
+    private fun updateMonthlyBudget(budget: Int) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 현재 월의 예산 설정
+                val calendar = java.util.Calendar.getInstance()
+                val dateFormat = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault())
+                val currentYearMonth = dateFormat.format(calendar.time)
+                
+                val result = MyApplication.authRepository.setMonthlyBudgetForMonth(currentYearMonth, budget)
+                
+                withContext(Dispatchers.Main) {
+                    result.fold(
+                        onSuccess = {
+                            Toast.makeText(requireContext(), "월별 예산이 설정되었습니다: ${String.format("%,d", budget)}원", Toast.LENGTH_SHORT).show()
+                        },
+                        onFailure = { exception ->
+                            Toast.makeText(requireContext(), "예산 설정 실패: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "예산 설정 중 오류 발생: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

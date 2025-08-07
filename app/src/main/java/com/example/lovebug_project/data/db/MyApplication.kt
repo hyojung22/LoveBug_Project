@@ -4,6 +4,7 @@ import android.app.Application
 // lifecycleScope import removed - Application doesn't have lifecycle
 import com.example.lovebug_project.data.repository.SupabaseRepositoryManager
 import com.example.lovebug_project.data.repository.SupabaseRealtimeRepository
+import com.example.lovebug_project.data.repository.SupabaseSavingRepository
 // Room import removed - migrated to Supabase
 // Unused coroutines imports removed
 
@@ -23,6 +24,7 @@ class MyApplication : Application() {
         // Legacy compatibility accessors - now lazy to prevent initialization issues
         val authRepository by lazy { SupabaseRepositoryManager.authRepository }
         val expenseRepository by lazy { SupabaseRepositoryManager.expenseRepository }
+        val savingRepository by lazy { SupabaseSavingRepository() }
         // userRepository removed - DB triggers handle profile creation automatically
         
         // Enhanced repositories

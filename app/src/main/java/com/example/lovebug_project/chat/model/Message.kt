@@ -3,6 +3,8 @@ package com.example.lovebug_project.chat.model
 data class Message(
     val messageId: String = "",
     val senderId: String = "",
+    val senderName: String = "", // 추가: 보낸 사람 이름
+    val senderProfileImageUrl: String = "", // 추가: 보낸 사람 프로필 이미지 URL
     val text: String = "",
     val timestamp: Long = 0L,
     val chatRoomId: String = "",

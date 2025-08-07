@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.lovebug_project.chat.adapter.ChatAdapter
 import com.example.lovebug_project.chat.model.Message
 import com.example.lovebug_project.data.repository.SupabaseChatRepository
+import com.example.lovebug_project.data.repository.SupabaseUserRepository
 import com.example.lovebug_project.data.supabase.models.Chat
 import com.example.lovebug_project.data.supabase.models.ChatMessage
 import com.example.lovebug_project.databinding.FragmentChatBinding
@@ -47,7 +48,11 @@ class ChatFragment : Fragment() {
     private var otherUserId: String? = null
     
     private val chatRepository = SupabaseChatRepository()
+    private val userRepository = SupabaseUserRepository()
     private var currentChat: Chat? = null
+    
+    // User nickname cache to avoid repeated API calls
+    private val nicknameCache = mutableMapOf<String, String>()
     
     // Realtime channels
     private var messageChannel: RealtimeChannel? = null
@@ -302,7 +307,10 @@ class ChatFragment : Fragment() {
                 Log.d("ChatFragment", "✅ Retrieved ${chatMessages.size} messages from repository")
                 
                 Log.d("ChatFragment", "🔄 Converting ChatMessages to local Messages...")
-                val localMessages = chatMessages.map { it.toLocalMessage() }
+                val localMessages = mutableListOf<Message>()
+                for (chatMessage in chatMessages) {
+                    localMessages.add(chatMessage.toLocalMessage())
+                }
                 Log.d("ChatFragment", "✅ Converted ${localMessages.size} messages")
                 
                 Log.d("ChatFragment", "📝 Updating messages list...")
@@ -389,6 +397,7 @@ class ChatFragment : Fragment() {
                     val localMessage = chatMessage.toLocalMessage()
                     Log.d("ChatFragment", "Local message ID: ${localMessage.messageId}")
                     Log.d("ChatFragment", "Local message senderId: ${localMessage.senderId}")
+                    Log.d("ChatFragment", "Local message senderName: '${localMessage.senderName}'")
                     Log.d("ChatFragment", "Local message text: '${localMessage.text}'")
                     
                     // 중복 메시지 방지 (자신이 보낸 메시지 포함)
@@ -433,21 +442,69 @@ class ChatFragment : Fragment() {
     
     /**
      * Convert ChatMessage (Supabase) to Message (local)
+     * Now loads real user nicknames from profiles table
      */
-    private fun ChatMessage.toLocalMessage(): Message {
+    private suspend fun ChatMessage.toLocalMessage(): Message {
         val timestampMs = try {
             Instant.parse(this.timestamp).toEpochMilli()
         } catch (e: DateTimeParseException) {
             System.currentTimeMillis()
         }
         
+        // 실제 사용자 닉네임 가져오기 (캐싱 사용)
+        val senderName = getUserNickname(this.senderId)
+        
         return Message(
             messageId = this.messageId.toString(),
             senderId = this.senderId,
+            senderName = senderName,
+            senderProfileImageUrl = "", // 일단 빈 값으로 설정 (추후 프로필 이미지 기능 추가 시 구현)
             text = this.message,
             timestamp = timestampMs,
             chatRoomId = this.chatId.toString()
         )
+    }
+    
+    /**
+     * Get user nickname with caching to avoid repeated API calls
+     * @param userId The user ID to get nickname for
+     * @return The user's nickname or a fallback name if not found
+     */
+    private suspend fun getUserNickname(userId: String): String {
+        // Check cache first
+        nicknameCache[userId]?.let { 
+            Log.d("ChatFragment", "📦 Using cached nickname for user $userId: $it")
+            return it 
+        }
+        
+        // Load from database
+        return try {
+            Log.d("ChatFragment", "🔍 Loading nickname for user $userId from database...")
+            val userProfile = userRepository.getUserProfile(userId)
+            val nickname = userProfile?.nickname?.takeIf { it.isNotBlank() }
+                ?: when (userId) {
+                    currentUserId -> "나"
+                    otherUserId -> "상대방"
+                    else -> "사용자_${userId.take(6)}"
+                }
+            
+            // Cache the result
+            nicknameCache[userId] = nickname
+            Log.d("ChatFragment", "✅ Loaded and cached nickname for user $userId: $nickname")
+            nickname
+            
+        } catch (e: Exception) {
+            Log.e("ChatFragment", "❌ Failed to load nickname for user $userId", e)
+            // Fallback to default names
+            val fallbackName = when (userId) {
+                currentUserId -> "나"
+                otherUserId -> "상대방"
+                else -> "사용자_${userId.take(6)}"
+            }
+            // Cache the fallback to avoid repeated failures
+            nicknameCache[userId] = fallbackName
+            fallbackName
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")

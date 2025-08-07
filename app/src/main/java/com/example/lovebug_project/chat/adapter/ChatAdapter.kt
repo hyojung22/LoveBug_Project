@@ -67,6 +67,9 @@ class ChatAdapter(
             // 이제 message는 올바른 타입이므로 text, timestamp, isLikedByCurrentUser, messageId 필드에 접근 가능
             binding.textViewMessageText.text = message.text
             binding.textViewTimestamp.text = formatTimestamp(message.timestamp)
+            
+            // 보낸 사람 이름 바인딩 (내가 보낸 메시지)
+            binding.textViewSenderName.text = message.senderName.ifEmpty { "나" }
 
             binding.textViewLikeCount.visibility = View.GONE
 
@@ -105,6 +108,11 @@ class ChatAdapter(
         ) {
             binding.textViewMessageText.text = message.text
             binding.textViewTimestamp.text = formatTimestamp(message.timestamp)
+            
+            // 프로필 이미지와 이름 바인딩
+            binding.textViewSenderName.text = message.senderName.ifEmpty { "Unknown" }
+            // 프로필 이미지는 일단 기본 아이콘 사용 (나중에 이미지 로더 구현 시 추가)
+            // TODO: Glide 또는 Coil을 사용해서 message.senderProfileImageUrl로 이미지 로드
 
             binding.textViewLikeCount.visibility = View.GONE
 
