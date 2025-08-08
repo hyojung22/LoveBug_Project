@@ -16,7 +16,7 @@
         android:layout_width="80dp"
         android:layout_height="80dp"
         android:background="@drawable/circle_button"
-        android:backgroundTint="#FFEB3B"
+        android:backgroundTint="@null"
         android:gravity="center"
         android:text="카테고리"
         android:textColor="@android:color/black"

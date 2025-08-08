@@ -15,12 +15,12 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
+        android:background="#4CAF50"
 
         app:layout_constraintTop_toTopOf="parent"
         app:navigationIcon="@drawable/ic_chevron_left"
         app:titleTextColor="@android:color/white"
-        tools:layout_editor_absoluteX="-16dp">
+        tools:layout_editor_absoluteX="0dp">
 
         <ImageView
             android:id="@+id/iv_delete"
@@ -81,6 +81,7 @@
         android:textSize="28sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="@id/et_amount"
+        app:layout_constraintEnd_toEndOf="@+id/divider_amount"
         app:layout_constraintStart_toEndOf="@id/et_amount"
         app:layout_constraintTop_toTopOf="@id/et_amount"
         app:layout_constraintVertical_bias="1.0" />
@@ -265,6 +266,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="24dp"
+        android:backgroundTint="#4CAF50"
         android:text="추가"
         android:textSize="16sp"
         android:textStyle="bold"

@@ -10,17 +10,15 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="30dp">
+        android:paddingHorizontal="20dp">
 
         <TextView
             android:id="@+id/date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="60dp"
+            android:layout_marginHorizontal="24dp"
             android:text="2025년 8월"
             android:textSize="24sp"
-            android:layout_marginHorizontal="24dp"
             app:layout_constraintEnd_toStartOf="@+id/imageView2"
             app:layout_constraintStart_toEndOf="@+id/ivSp"
             app:layout_constraintTop_toTopOf="parent" />
@@ -47,15 +45,13 @@
             app:layout_constraintBottom_toBottomOf="@+id/date" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:visibility="gone"
             android:id="@+id/share_switch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="24dp"
-            android:layout_marginTop="15dp"
             android:text="공유"
             android:textSize="18sp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/date"
             app:layout_constraintTop_toTopOf="parent" />
 
         <com.github.mikephil.charting.charts.PieChart
