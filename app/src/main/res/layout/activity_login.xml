@@ -12,16 +12,20 @@
     <Button
         android:id="@+id/loginBtn"
         android:layout_width="330dp"
-        android:layout_height="70dp"
+        android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="76dp"
         android:layout_marginEnd="20dp"
+        android:layout_marginBottom="60dp"
+        android:backgroundTint="#FFD200"
+        android:padding="15dp"
         android:text="로그인"
+        android:textColor="@color/black"
+        android:textSize="16sp"
         android:visibility="visible"
-        app:cornerRadius="5dp"
+        app:cornerRadius="10dp"
+        app:layout_constraintBottom_toTopOf="@+id/btnGoSignUp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/passwordArea" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <EditText
         android:id="@+id/passwordArea"
@@ -55,31 +59,30 @@
     <TextView
         android:id="@+id/textView2"
         android:layout_width="0dp"
-        android:layout_height="30dp"
-        android:layout_marginStart="20dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="68dp"
-        android:layout_marginEnd="20dp"
         android:text="회원이신가요?"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        android:textSize="24sp"
+        app:layout_constraintEnd_toEndOf="@+id/emailArea"
+        app:layout_constraintStart_toStartOf="@+id/emailArea"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/btnGoSignUp"
-        android:layout_width="160dp"
-        android:layout_height="48dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        android:backgroundTint="#FFD200"
         android:ems="10"
         android:inputType="text"
         android:text=" 회원가입 하러가기"
+        android:textColor="@color/black"
+        android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/loginBtn"
-        app:layout_constraintVertical_bias="0.485" />
-    android:paddingHorizontal="20dp"
-    android:background="@color/white">
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

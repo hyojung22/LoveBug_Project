@@ -28,9 +28,9 @@ fun Activity.hideKeyboardActivity() { // 함수 이름 충돌 방지를 위해 �
  */
 fun ImageView.loadProfileImage(profileImageUrl: String?) {
     Glide.with(context)
-        .load(profileImageUrl.takeIf { !it.isNullOrBlank() } ?: R.drawable.circle_button)
-        .placeholder(R.drawable.circle_button)
-        .error(R.drawable.circle_button)
+        .load(profileImageUrl.takeIf { !it.isNullOrBlank() } ?: R.drawable.default_profile_image)
+        .placeholder(R.drawable.default_profile_image)
+        .error(R.drawable.default_profile_image)
         .centerCrop()
         .into(this)
 }

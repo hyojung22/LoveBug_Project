@@ -225,29 +225,29 @@ class SupabaseChatRepository {
         }
         android.util.Log.d("SupabaseChatRepo", "✅ Realtime connection established")
         
-        // Always create new channel - no reuse to avoid postgresChangeFlow issues
+        // Create unique channel for this specific chat room to improve filtering
         val channelName = "chat-messages-$chatId"
         android.util.Log.d("SupabaseChatRepo", "Creating new Realtime channel: $channelName")
         val channel = realtime.channel(channelName)
         android.util.Log.d("SupabaseChatRepo", "Channel created: ${channel}")
         android.util.Log.d("SupabaseChatRepo", "Channel status before setup: ${channel.status}")
         
-        // Create postgresChangeFlow BEFORE subscribe (this is critical!)
+        // Create postgresChangeFlow - channel name separation provides isolation
         android.util.Log.d("SupabaseChatRepo", "Creating postgresChangeFlow for table: chat_messages")
         val flow = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "chat_messages"
-            // Remove server-side filtering due to API changes in version 3.0.3
-            // Will use client-side filtering instead
+            // Note: Server-side filtering via filter property is not available in 3.2.2
+            // Using unique channel names per chat for isolation instead
         }
-        android.util.Log.d("SupabaseChatRepo", "✅ PostgresChangeFlow created for table: chat_messages")
-        ErrorReporter.logSuccess("RealtimeSetup", "Created postgresChangeFlow for table: chat_messages, chat: $chatId")
+        android.util.Log.d("SupabaseChatRepo", "✅ PostgresChangeFlow created for table: chat_messages on channel: $channelName")
+        ErrorReporter.logSuccess("RealtimeSetup", "Created postgresChangeFlow for table: chat_messages, chat: $chatId with channel isolation")
 
         // Subscribe to channel AFTER creating postgresChangeFlow
         android.util.Log.d("SupabaseChatRepo", "Subscribing to channel...")
         channel.subscribe()
 
-        // Brief delay to allow subscription
-        kotlinx.coroutines.delay(1000)
+        // Increase delay to ensure subscription is fully established
+        kotlinx.coroutines.delay(2000)
         android.util.Log.d("SupabaseChatRepo", "Channel status after subscription: ${channel.status}")
         
         ErrorReporter.logSuccess("RealtimeChannel", "Channel subscribed for chat: $chatId")
@@ -319,6 +319,7 @@ class SupabaseChatRepository {
                 throw error
             }
     }
+
     
     /**
      * Subscribe to all message changes (insert, update, delete) in a chat room

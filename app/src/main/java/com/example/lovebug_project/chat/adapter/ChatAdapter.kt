@@ -10,6 +10,7 @@ import com.example.lovebug_project.R
 import com.example.lovebug_project.chat.model.Message // 올바른 Message 모델 import
 import com.example.lovebug_project.databinding.ItemChatMessageReceivedBinding
 import com.example.lovebug_project.databinding.ItemChatMessageSentBinding
+import com.example.lovebug_project.utils.loadProfileImage
 
 class ChatAdapter(
     private val messages: MutableList<Message>, // 타입 변경: com.example.lovebug_project.chat.model.Message
@@ -111,8 +112,9 @@ class ChatAdapter(
             
             // 프로필 이미지와 이름 바인딩
             binding.textViewSenderName.text = message.senderName.ifEmpty { "Unknown" }
-            // 프로필 이미지는 일단 기본 아이콘 사용 (나중에 이미지 로더 구현 시 추가)
-            // TODO: Glide 또는 Coil을 사용해서 message.senderProfileImageUrl로 이미지 로드
+            
+            // 프로필 이미지 로딩 구현
+            binding.imageViewSenderProfile.loadProfileImage(message.senderProfileImageUrl)
 
             binding.textViewLikeCount.visibility = View.GONE
 

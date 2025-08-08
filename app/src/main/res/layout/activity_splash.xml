@@ -5,6 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FBC80E"
     tools:context=".SplashActivity">
 
     <!-- 이 ImageView가 랜덤 이미지를 보여줄 전체 화면 공간입니다. -->
@@ -12,7 +13,7 @@
         android:id="@+id/splashImageView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:scaleType="centerCrop"
+        android:scaleType="fitCenter"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
