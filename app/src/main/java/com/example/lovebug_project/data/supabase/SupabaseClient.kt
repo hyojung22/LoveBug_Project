@@ -4,6 +4,9 @@ import com.example.lovebug_project.BuildConfig
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.FlowType
 import io.github.jan.supabase.auth.MemorySessionManager
+import com.russhwolf.settings.SharedPreferencesSettings
+import com.russhwolf.settings.Settings
+import io.github.jan.supabase.auth.SettingsSessionManager
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.storage.Storage
@@ -13,6 +16,22 @@ object SupabaseClient {
     // Secure credential access via BuildConfig
     private val SUPABASE_URL = BuildConfig.SUPABASE_URL
     private val SUPABASE_ANON_KEY = BuildConfig.SUPABASE_ANON_KEY
+    
+    /**
+     * Lazy-initialized persistent session manager
+     * Avoids Android context initialization issues by delaying creation
+     */
+    private val persistentSessionManager by lazy {
+        try {
+            val context = com.example.lovebug_project.data.db.MyApplication.instance
+            val sharedPreferences = context.getSharedPreferences("supabase_session", android.content.Context.MODE_PRIVATE)
+            val settings: Settings = SharedPreferencesSettings(sharedPreferences)
+            SettingsSessionManager(settings)
+        } catch (e: Exception) {
+            android.util.Log.w("SupabaseClient", "Failed to create persistent session manager, falling back to memory", e)
+            MemorySessionManager()
+        }
+    }
     
     val client = createSupabaseClient(
         supabaseUrl = SUPABASE_URL,
@@ -28,13 +47,21 @@ object SupabaseClient {
             flowType = FlowType.PKCE
             android.util.Log.d("SupabaseClient", "Auth flow type: PKCE")
             
-            // Use memory session manager to prevent Android context initialization issues
-            // This prevents "Failed to create default settings for SettingsSessionManager" error
-            sessionManager = MemorySessionManager()
-            android.util.Log.d("SupabaseClient", "Session manager: MemorySessionManager")
+            // Use persistent session manager for session persistence across app restarts
+            sessionManager = persistentSessionManager
+            android.util.Log.d("SupabaseClient", "Session manager: Persistent (${persistentSessionManager::class.simpleName})")
             
-            // For production, consider implementing a proper Android-aware session manager
-            // that delays initialization until Application context is available
+            // Auto-load session from storage on app startup
+            autoLoadFromStorage = true
+            android.util.Log.d("SupabaseClient", "Auto-load from storage: enabled")
+            
+            // Keep sessions refreshed automatically
+            alwaysAutoRefresh = true 
+            android.util.Log.d("SupabaseClient", "Auto-refresh: enabled")
+            
+            // Prevent session clearing when app goes to background on Android
+            enableLifecycleCallbacks = false
+            android.util.Log.d("SupabaseClient", "Lifecycle callbacks: disabled")
         }
         
         install(Postgrest) {
