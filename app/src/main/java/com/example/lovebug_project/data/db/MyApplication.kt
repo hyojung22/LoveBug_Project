@@ -14,6 +14,10 @@ import com.example.lovebug_project.data.repository.SupabaseSavingRepository
  */
 class MyApplication : Application() {
     companion object {
+        // Global application instance for accessing context
+        lateinit var instance: MyApplication
+            private set
+            
         // Enhanced repository manager with context-aware initialization
         lateinit var repositoryManager: SupabaseRepositoryManager
             private set
@@ -37,6 +41,9 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Set global instance
+        instance = this
         
         // Room database initialization removed - migration to Supabase completed
         
