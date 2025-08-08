@@ -7,7 +7,6 @@
     android:layout_height="match_parent"
     android:background="#ffffff"
     android:paddingHorizontal="20dp"
-    android:paddingVertical="30dp"
     tools:context=".mypage.MypageFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
