@@ -49,7 +49,12 @@ class MypageFragment : Fragment() {
         
         // 북마크 클릭 이벤트
         binding.constraintLayout3.setOnClickListener {
-            Toast.makeText(requireContext(), "북마크 기능 준비 중입니다.", Toast.LENGTH_SHORT).show()
+            // MainActivity의 frame을 사용해서 BookMarkFragment로 이동
+            val mainActivity = requireActivity() as com.example.lovebug_project.MainActivity
+            val transaction = mainActivity.supportFragmentManager.beginTransaction()
+            transaction.replace(R.id.frame, BookMarkFragment.newInstance())
+            transaction.addToBackStack(null)
+            transaction.commit()
         }
         
         // 나의 게시물 클릭 이벤트  

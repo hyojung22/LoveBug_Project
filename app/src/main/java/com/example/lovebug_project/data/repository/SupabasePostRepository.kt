@@ -4,6 +4,7 @@ import com.example.lovebug_project.data.supabase.SupabaseClient
 import com.example.lovebug_project.data.supabase.models.Post
 import com.example.lovebug_project.data.supabase.models.Comment
 import com.example.lovebug_project.data.supabase.models.PostWithProfile
+import com.example.lovebug_project.data.supabase.models.Bookmark
 import com.example.lovebug_project.utils.ErrorReporter
 import com.example.lovebug_project.utils.measureOperation
 import io.github.jan.supabase.postgrest.from
@@ -338,7 +339,15 @@ class SupabasePostRepository {
                         }
                     }
                 
-                // 3. 게시글 삭제 (posts 테이블에서 해당 post_id)
+                // 3. 연관된 북마크 삭제 (bookmarks 테이블에서 post_id가 일치하는 모든 북마크)
+                supabase.from("bookmarks")
+                    .delete {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                
+                // 4. 게시글 삭제 (posts 테이블에서 해당 post_id)
                 supabase.from("posts")
                     .delete {
                         filter {
@@ -653,6 +662,226 @@ class SupabasePostRepository {
                 context = ErrorReporter.createContext("postId" to postId)
             )
             Result.failure(e)
+        }
+    }
+    
+    // ============ 북마크 관련 기능 ============
+    
+    /**
+     * 북마크 추가
+     */
+    suspend fun addBookmark(postId: Int, userId: String): Result<Bookmark> {
+        return measureOperation("addBookmark") {
+            try {
+                val bookmark = Bookmark(
+                    postId = postId,
+                    userId = userId
+                )
+                
+                val result = supabase.from("bookmarks")
+                    .insert(bookmark) {
+                        select()
+                    }
+                    .decodeSingle<Bookmark>()
+                
+                ErrorReporter.logSuccess(
+                    "addBookmark", 
+                    "Bookmark added for post $postId by user $userId"
+                )
+                
+                Result.success(result)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "addBookmark",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "userId" to userId
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 북마크 삭제
+     */
+    suspend fun removeBookmark(postId: Int, userId: String): Result<Unit> {
+        return measureOperation("removeBookmark") {
+            try {
+                supabase.from("bookmarks")
+                    .delete {
+                        filter {
+                            and {
+                                eq("post_id", postId)
+                                eq("user_id", userId)
+                            }
+                        }
+                    }
+                
+                ErrorReporter.logSuccess(
+                    "removeBookmark", 
+                    "Bookmark removed for post $postId by user $userId"
+                )
+                
+                Result.success(Unit)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "removeBookmark",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "userId" to userId
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 특정 게시글의 북마크 개수 조회
+     */
+    suspend fun getBookmarkCountByPost(postId: Int): Result<Int> {
+        return measureOperation("getBookmarkCountByPost") {
+            try {
+                val bookmarks = supabase.from("bookmarks")
+                    .select {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                    .decodeList<Bookmark>()
+                
+                ErrorReporter.trackPerformance(
+                    operationName = "getBookmarkCountByPost",
+                    duration = 0,
+                    success = true,
+                    recordCount = bookmarks.size
+                )
+                
+                Result.success(bookmarks.size)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "getBookmarkCountByPost",
+                    error = e,
+                    context = ErrorReporter.createContext("postId" to postId)
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 사용자가 특정 게시글에 북마크를 했는지 확인
+     */
+    suspend fun isPostBookmarkedByUser(postId: Int, userId: String): Result<Boolean> {
+        return measureOperation("isPostBookmarkedByUser") {
+            try {
+                val bookmarks = supabase.from("bookmarks")
+                    .select {
+                        filter {
+                            and {
+                                eq("post_id", postId)
+                                eq("user_id", userId)
+                            }
+                        }
+                    }
+                    .decodeList<Bookmark>()
+                
+                val isBookmarked = bookmarks.isNotEmpty()
+                
+                ErrorReporter.trackPerformance(
+                    operationName = "isPostBookmarkedByUser",
+                    duration = 0,
+                    success = true,
+                    recordCount = bookmarks.size
+                )
+                
+                Result.success(isBookmarked)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "isPostBookmarkedByUser",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "userId" to userId
+                    )
+                )
+                Result.failure(e)
+            }
+        }
+    }
+    
+    /**
+     * 사용자의 북마크한 게시글 목록 조회 (최신순)
+     */
+    suspend fun getBookmarkedPostsByUser(userId: String, limitCount: Int = 20, offset: Int = 0): Result<List<PostWithProfile>> {
+        return measureOperation("getBookmarkedPostsByUser") {
+            try {
+                // 1. 사용자의 북마크 목록을 가져옵니다
+                val bookmarks = supabase.from("bookmarks")
+                    .select {
+                        limit(limitCount.toLong())
+                        range(offset.toLong(), (offset + limitCount - 1).toLong())
+                        filter {
+                            eq("user_id", userId)
+                        }
+                    }
+                    .decodeList<Bookmark>()
+                    .sortedByDescending { it.createdAt } // 최신순 정렬
+                
+                // 2. 북마크된 게시글들의 상세 정보를 병렬로 가져옵니다
+                val postsWithProfiles = coroutineScope {
+                    bookmarks.map { bookmark ->
+                        async {
+                            // 게시글 정보 가져오기
+                            val postResult = getPostById(bookmark.postId)
+                            val post = postResult.getOrNull()
+                            
+                            if (post != null) {
+                                // 작성자 프로필 정보 가져오기
+                                val userProfile = userRepository.getUserProfile(post.userId)
+                                PostWithProfile(
+                                    postId = post.postId,
+                                    userId = post.userId,
+                                    title = post.title,
+                                    content = post.content,
+                                    imageUrl = post.image,
+                                    imagePath = null,
+                                    createdAt = post.createdAt,
+                                    updatedAt = post.updatedAt,
+                                    nickname = userProfile?.nickname ?: "알 수 없는 사용자",
+                                    avatarUrl = userProfile?.avatarUrl
+                                )
+                            } else {
+                                null
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
+                }
+
+                ErrorReporter.trackPerformance(
+                    operationName = "getBookmarkedPostsByUser",
+                    duration = 0,
+                    success = true,
+                    recordCount = postsWithProfiles.size
+                )
+
+                Result.success(postsWithProfiles)
+            } catch (e: Exception) {
+                ErrorReporter.logSupabaseError(
+                    operation = "getBookmarkedPostsByUser",
+                    error = e,
+                    context = ErrorReporter.createContext(
+                        "userId" to userId,
+                        "limit" to limitCount,
+                        "offset" to offset
+                    )
+                )
+                Result.failure(e)
+            }
         }
     }
 }

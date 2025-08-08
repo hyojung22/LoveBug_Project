@@ -104,26 +104,32 @@ class BoardAdapter(
         // 현재 사용자 UUID 가져오기
         val currentUserUuid = AuthHelper.getSupabaseUserId(context)
         
-        // 좋아요 상태를 백그라운드에서 불러오기
+        // 좋아요와 북마크 상태를 백그라운드에서 불러오기
         var isLiked = false
         var likeCount = 0
+        var isBookmarked = false
         
         // 초기 로딩 상태 설정 (기본값)
         updateLikeUI(holder, false, postExtra.likeCount)
+        updateBookmarkUI(holder, postExtra.isBookmarked)
         
-        // Supabase에서 실제 좋아요 상태 로드
+        // Supabase에서 실제 좋아요와 북마크 상태 로드
         if (currentUserUuid != null) {
             coroutineScope.launch(Dispatchers.IO) {
                 try {
-                    // 좋아요 상태와 개수를 동시에 조회
+                    // 좋아요 상태와 개수, 북마크 상태를 동시에 조회
                     val isLikedResult = MyApplication.repositoryManager.postRepository.isPostLikedByUser(
                         post.postId, currentUserUuid
                     )
                     val likeCountResult = MyApplication.repositoryManager.postRepository.getLikeCountByPost(
                         post.postId
                     )
+                    val isBookmarkedResult = MyApplication.repositoryManager.postRepository.isPostBookmarkedByUser(
+                        post.postId, currentUserUuid
+                    )
                     
                     withContext(Dispatchers.Main) {
+                        // 좋아요 상태 처리
                         isLikedResult.fold(
                             onSuccess = { liked ->
                                 isLiked = liked
@@ -144,10 +150,23 @@ class BoardAdapter(
                                 updateLikeUI(holder, false, postExtra.likeCount)
                             }
                         )
+                        
+                        // 북마크 상태 처리
+                        isBookmarkedResult.fold(
+                            onSuccess = { bookmarked ->
+                                isBookmarked = bookmarked
+                                updateBookmarkUI(holder, isBookmarked)
+                            },
+                            onFailure = {
+                                // 에러 시 기본값 유지
+                                updateBookmarkUI(holder, postExtra.isBookmarked)
+                            }
+                        )
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         updateLikeUI(holder, false, postExtra.likeCount)
+                        updateBookmarkUI(holder, postExtra.isBookmarked)
                     }
                 }
             }
@@ -219,6 +238,69 @@ class BoardAdapter(
             }
         }
 
+        // 북마크 버튼 클릭 (Supabase DB 연동)
+        holder.imgBookmark.setOnClickListener {
+            if (currentUserUuid == null) {
+                android.widget.Toast.makeText(context, "로그인이 필요합니다.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // 내가 쓴 글은 북마크 불가
+            val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+            val currentUserId = sharedPref.getInt("userId", -1)
+            if (post.userId == currentUserId) {
+                android.widget.Toast.makeText(context, "내가 작성한 글은 북마크할 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // 중복 클릭 방지
+            holder.imgBookmark.isEnabled = false
+            
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val result = if (isBookmarked) {
+                        // 북마크 취소
+                        MyApplication.repositoryManager.postRepository.removeBookmark(post.postId, currentUserUuid)
+                    } else {
+                        // 북마크 추가
+                        MyApplication.repositoryManager.postRepository.addBookmark(post.postId, currentUserUuid)
+                    }
+                    
+                    result.fold(
+                        onSuccess = {
+                            withContext(Dispatchers.Main) {
+                                isBookmarked = !isBookmarked
+                                updateBookmarkUI(holder, isBookmarked)
+                                holder.imgBookmark.isEnabled = true
+                                
+                                val message = if (isBookmarked) "북마크에 추가되었습니다." else "북마크에서 제거되었습니다."
+                                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onFailure = { exception ->
+                            withContext(Dispatchers.Main) {
+                                holder.imgBookmark.isEnabled = true
+                                android.widget.Toast.makeText(
+                                    context, 
+                                    "북마크 처리 실패: ${exception.message}", 
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        holder.imgBookmark.isEnabled = true
+                        android.widget.Toast.makeText(
+                            context, 
+                            "오류가 발생했습니다: ${e.message}", 
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+
         // 클릭 시 이벤트
         holder.itemView.setOnClickListener {
             onItemClick(postExtra)
@@ -232,4 +314,9 @@ class BoardAdapter(
 private fun updateLikeUI(holder: BoardAdapter.BoardViewHolder, isLiked: Boolean, likeCount: Int) {
     holder.imgLike.setImageResource(if (isLiked) R.drawable.like_on else R.drawable.like_off)
     holder.tvLike.text = likeCount.toString()
+}
+
+// 북마크 UI 업데이트 함수
+private fun updateBookmarkUI(holder: BoardAdapter.BoardViewHolder, isBookmarked: Boolean) {
+    holder.imgBookmark.setImageResource(if (isBookmarked) R.drawable.bookmark_on else R.drawable.bookmark)
 }

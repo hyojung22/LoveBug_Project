@@ -206,18 +206,28 @@ class BoardDetailFragment : Fragment() {
 
         binding.tvNick.text = postExtra.nickname
 
-        // 좋아요 상태 변수 초기화
+        // 좋아요와 북마크 상태 변수 초기화
         var isLiked = false
         var likeCount = 0
+        var isBookmarked = false
         
         // 기본 텍스트 및 이미지 세팅
         binding.tvComment.text = postExtra.commentCount.toString()
         binding.etContent.setText(postExtra.post.content)
         
-        // Supabase 좋아요 기능 구현
+        // 현재 사용자의 게시글인지 확인
+        val sharedPref = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val currentUserId = sharedPref.getInt("userId", -1)
+        val isMyPost = postExtra.post.userId == currentUserId
+        
+        // 북마크 버튼 가시성 설정 (내 게시글이면 숨김)
+        binding.imgBookmark.visibility = if (isMyPost) View.GONE else View.VISIBLE
+        
+        // Supabase 좋아요 및 북마크 기능 구현
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 if (currentUserUuid != null) {
+                    // 좋아요 상태 조회
                     val isLikedResult = MyApplication.repositoryManager.postRepository.isPostLikedByUser(
                         postExtra.post.postId, currentUserUuid
                     )
@@ -225,7 +235,15 @@ class BoardDetailFragment : Fragment() {
                         postExtra.post.postId
                     )
                     
+                    // 북마크 상태 조회 (내 게시글이 아닐 때만)
+                    val isBookmarkedResult = if (!isMyPost) {
+                        MyApplication.repositoryManager.postRepository.isPostBookmarkedByUser(
+                            postExtra.post.postId, currentUserUuid
+                        )
+                    } else null
+                    
                     withContext(Dispatchers.Main) {
+                        // 좋아요 상태 처리
                         isLikedResult.fold(
                             onSuccess = { liked ->
                                 isLiked = liked
@@ -253,17 +271,36 @@ class BoardDetailFragment : Fragment() {
                                 binding.imgLike.setImageResource(R.drawable.like_off)
                             }
                         )
+                        
+                        // 북마크 상태 처리
+                        isBookmarkedResult?.fold(
+                            onSuccess = { bookmarked ->
+                                isBookmarked = bookmarked
+                                binding.imgBookmark.setImageResource(
+                                    if (isBookmarked) R.drawable.bookmark_on else R.drawable.bookmark
+                                )
+                            },
+                            onFailure = {
+                                // 에러 발생 시 기본값
+                                binding.imgBookmark.setImageResource(R.drawable.bookmark)
+                            }
+                        ) ?: run {
+                            // 내 게시글인 경우
+                            binding.imgBookmark.setImageResource(R.drawable.bookmark)
+                        }
                     }
                 } else {
                     withContext(Dispatchers.Main) {
                         binding.tvLike.text = "0"
                         binding.imgLike.setImageResource(R.drawable.like_off)
+                        binding.imgBookmark.setImageResource(R.drawable.bookmark)
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     binding.tvLike.text = "0"
                     binding.imgLike.setImageResource(R.drawable.like_off)
+                    binding.imgBookmark.setImageResource(R.drawable.bookmark)
                 }
             }
         }
@@ -355,6 +392,81 @@ class BoardDetailFragment : Fragment() {
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         binding.imgLike.isEnabled = true
+                        android.widget.Toast.makeText(
+                            requireContext(), 
+                            "오류가 발생했습니다: ${e.message}", 
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+
+        // Supabase 북마크 클릭 핸들러
+        binding.imgBookmark.setOnClickListener {
+            if (currentUserUuid == null) {
+                android.widget.Toast.makeText(requireContext(), "로그인이 필요합니다.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // 내 게시글인지 다시 한 번 확인
+            if (isMyPost) {
+                android.widget.Toast.makeText(requireContext(), "내가 작성한 글은 북마크할 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // 중복 클릭 방지
+            binding.imgBookmark.isEnabled = false
+            
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val result = if (isBookmarked) {
+                        // 북마크 취소
+                        MyApplication.repositoryManager.postRepository.removeBookmark(postExtra.post.postId, currentUserUuid)
+                    } else {
+                        // 북마크 추가
+                        MyApplication.repositoryManager.postRepository.addBookmark(postExtra.post.postId, currentUserUuid)
+                    }
+                    
+                    result.fold(
+                        onSuccess = {
+                            withContext(Dispatchers.Main) {
+                                // UI 업데이트
+                                isBookmarked = !isBookmarked
+                                binding.imgBookmark.setImageResource(
+                                    if (isBookmarked) R.drawable.bookmark_on else R.drawable.bookmark
+                                )
+                                
+                                // 목록 화면에 결과 전달
+                                parentFragmentManager.setFragmentResult(
+                                    "bookmarkUpdate",
+                                    Bundle().apply {
+                                        putInt("postId", postExtra.post.postId)
+                                        putBoolean("isBookmarked", isBookmarked)
+                                    }
+                                )
+                                
+                                // 버튼 다시 활성화
+                                binding.imgBookmark.isEnabled = true
+                                
+                                val message = if (isBookmarked) "북마크에 추가되었습니다." else "북마크에서 제거되었습니다."
+                                android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onFailure = { exception ->
+                            withContext(Dispatchers.Main) {
+                                binding.imgBookmark.isEnabled = true
+                                android.widget.Toast.makeText(
+                                    requireContext(), 
+                                    "북마크 처리 실패: ${exception.message}", 
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        binding.imgBookmark.isEnabled = true
                         android.widget.Toast.makeText(
                             requireContext(), 
                             "오류가 발생했습니다: ${e.message}", 
