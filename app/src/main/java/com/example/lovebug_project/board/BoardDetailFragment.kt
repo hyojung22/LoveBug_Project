@@ -64,7 +64,24 @@ class BoardDetailFragment : Fragment() {
                         // 1) Supabase에서 게시글 삭제
                         lifecycleScope.launch(Dispatchers.IO) {
                             try {
-                                val result = MyApplication.repositoryManager.postRepository.deletePost(postExtra.post.postId)
+                                // 현재 사용자 UUID 가져오기
+                                val currentUserUuid = AuthHelper.getSupabaseUserId(requireContext())
+                                
+                                if (currentUserUuid == null) {
+                                    withContext(Dispatchers.Main) {
+                                        android.widget.Toast.makeText(
+                                            requireContext(),
+                                            "로그인이 필요합니다.",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    return@launch
+                                }
+                                
+                                val result = MyApplication.repositoryManager.postRepository.deletePost(
+                                    postExtra.post.postId, 
+                                    currentUserUuid
+                                )
                                 
                                 withContext(Dispatchers.Main) {
                                     result.fold(
@@ -118,6 +135,11 @@ class BoardDetailFragment : Fragment() {
 
         // Supabase 사용자 UUID 가져오기
         val currentUserUuid = AuthHelper.getSupabaseUserId(requireContext())
+
+        // 🗑️ 삭제 버튼 가시성 설정 (다른 사람의 게시글에는 삭제 버튼 숨김)
+        val isMyPost = currentUserUuid != null && currentUserUuid.hashCode() == postExtra.post.userId
+        val deleteButton = requireActivity().findViewById<TextView>(R.id.btnDelete)
+        deleteButton.visibility = if (isMyPost) View.VISIBLE else View.GONE
 
         // 댓글 어댑터 초기화
         commentAdapter = CommentAdapter(
@@ -214,11 +236,6 @@ class BoardDetailFragment : Fragment() {
         // 기본 텍스트 및 이미지 세팅
         binding.tvComment.text = postExtra.commentCount.toString()
         binding.etContent.setText(postExtra.post.content)
-        
-        // 현재 사용자의 게시글인지 확인
-        val sharedPref = requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val currentUserId = sharedPref.getInt("userId", -1)
-        val isMyPost = postExtra.post.userId == currentUserId
         
         // 북마크 버튼 가시성 설정 (내 게시글이면 숨김)
         binding.imgBookmark.visibility = if (isMyPost) View.GONE else View.VISIBLE
