@@ -37,7 +37,7 @@ class SupabaseChatRepository {
         return try {
             android.util.Log.d("SupabaseChatRepo", "🔌 Starting improved Realtime connection...")
             
-            val currentStatus = realtime.status.toString()
+            val currentStatus = realtime.status.value.toString()
             android.util.Log.d("SupabaseChatRepo", "Current status: $currentStatus")
             
             // 이미 연결되어 있으면 바로 반환
@@ -55,7 +55,7 @@ class SupabaseChatRepository {
             val checkInterval = 500L // 0.5초마다 체크
             
             while (waitTime < maxWaitTime) {
-                val status = realtime.status.toString()
+                val status = realtime.status.value.toString()
                 android.util.Log.d("SupabaseChatRepo", "Checking status: $status (waited: ${waitTime}ms)")
                 
                 when (status) {
@@ -83,7 +83,7 @@ class SupabaseChatRepository {
             }
             
             // 타임아웃
-            val finalStatus = realtime.status.toString()
+            val finalStatus = realtime.status.value.toString()
             android.util.Log.e("SupabaseChatRepo", "❌ Connection timeout after ${maxWaitTime}ms. Final status: $finalStatus")
             ErrorReporter.logSupabaseError("RealtimeConnection", 
                 Exception("Connection timeout after ${maxWaitTime}ms. Status: $finalStatus"))
@@ -291,7 +291,7 @@ class SupabaseChatRepository {
         val checkInterval = 500L
         
         while (waitTime < maxWaitTime) {
-            val status = channel.status.toString()
+            val status = channel.status.value.toString()
             android.util.Log.d("SupabaseChatRepo", "Channel status: $status (waited: ${waitTime}ms)")
             
             if (status == "SUBSCRIBED" || status == "JOINED") {
@@ -303,7 +303,7 @@ class SupabaseChatRepository {
             waitTime += checkInterval
         }
         
-        val finalStatus = channel.status.toString()
+        val finalStatus = channel.status.value.toString()
         android.util.Log.d("SupabaseChatRepo", "Final channel status: $finalStatus")
         
         ErrorReporter.logSuccess("RealtimeChannel", "Channel subscribed for chat: $chatId, status: $finalStatus")
