@@ -21,6 +21,9 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import com.example.lovebug_project.utils.AuthHelper
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -161,30 +164,58 @@ class BoardMainFragment : Fragment() {
                                 if (it is JsonPrimitive && it.isString) it.content else "내 게시글"
                             } ?: "내 게시글"
                             
-                            // Convert PostWithProfile to PostWithExtras
-                            val searchResults = postsWithProfiles.map { postWithProfile ->
-                                val displayNickname = if (postWithProfile.userId == currentUserId) {
-                                    currentUserNickname
-                                } else {
-                                    postWithProfile.nickname ?: "알 수 없는 사용자"
-                                }
-                                
-                                PostWithExtras(
-                                    post = com.example.lovebug_project.data.db.entity.Post(
-                                        postId = postWithProfile.postId,
-                                        userId = postWithProfile.userId.hashCode(),
-                                        title = postWithProfile.title,
-                                        content = postWithProfile.content,
-                                        image = postWithProfile.imageUrl,
-                                        createdAt = postWithProfile.createdAt
-                                    ),
-                                    nickname = displayNickname,
-                                    profileImage = postWithProfile.avatarUrl,
-                                    likeCount = 0,
-                                    commentCount = 0,
-                                    isLiked = false,
-                                    isBookmarked = false
-                                )
+                            // Convert PostWithProfile to PostWithExtras with actual values
+                            val searchResults = coroutineScope {
+                                postsWithProfiles.map { postWithProfile ->
+                                    async {
+                                        val displayNickname = if (postWithProfile.userId == currentUserId) {
+                                            currentUserNickname
+                                        } else {
+                                            postWithProfile.nickname ?: "알 수 없는 사용자"
+                                        }
+                                        
+                                        // Fetch actual counts and statuses in parallel
+                                        val commentCountDeferred = async {
+                                            repositoryManager.postRepository.getCommentCountByPost(postWithProfile.postId).getOrElse { 0 }
+                                        }
+                                        val likeCountDeferred = async {
+                                            repositoryManager.postRepository.getLikeCountByPost(postWithProfile.postId).getOrElse { 0 }
+                                        }
+                                        val isLikedDeferred = async {
+                                            if (currentUserId != null) {
+                                                repositoryManager.postRepository.isPostLikedByUser(postWithProfile.postId, currentUserId).getOrElse { false }
+                                            } else false
+                                        }
+                                        val isBookmarkedDeferred = async {
+                                            if (currentUserId != null) {
+                                                repositoryManager.postRepository.isPostBookmarkedByUser(postWithProfile.postId, currentUserId).getOrElse { false }
+                                            } else false
+                                        }
+                                        
+                                        // Wait for all async operations to complete
+                                        val commentCount = commentCountDeferred.await()
+                                        val likeCount = likeCountDeferred.await()
+                                        val isLiked = isLikedDeferred.await()
+                                        val isBookmarked = isBookmarkedDeferred.await()
+                                        
+                                        PostWithExtras(
+                                            post = com.example.lovebug_project.data.db.entity.Post(
+                                                postId = postWithProfile.postId,
+                                                userId = postWithProfile.userId.hashCode(),
+                                                title = postWithProfile.title,
+                                                content = postWithProfile.content,
+                                                image = postWithProfile.imageUrl,
+                                                createdAt = postWithProfile.createdAt
+                                            ),
+                                            nickname = displayNickname,
+                                            profileImage = postWithProfile.avatarUrl,
+                                            likeCount = likeCount,
+                                            commentCount = commentCount,
+                                            isLiked = isLiked,
+                                            isBookmarked = isBookmarked
+                                        )
+                                    }
+                                }.awaitAll()
                             }
                             
                             // UI 업데이트는 메인 스레드에서 수행
@@ -291,31 +322,59 @@ class BoardMainFragment : Fragment() {
                         } ?: "내 게시글"
                         
                         // Convert PostWithProfile to PostWithExtras and sort by postId descending (newest first)
-                        val postWithExtrasList = postsWithProfiles.map { postWithProfile ->
-                            // Use the actual nickname from the profile, but override for current user
-                            val displayNickname = if (postWithProfile.userId == currentUserId) {
-                                currentUserNickname
-                            } else {
-                                postWithProfile.nickname ?: "알 수 없는 사용자"
-                            }
-                            
-                            // Create PostWithExtras with Room Post entity
-                            PostWithExtras(
-                                post = com.example.lovebug_project.data.db.entity.Post(
-                                    postId = postWithProfile.postId,
-                                    userId = postWithProfile.userId.hashCode(), // Temporary conversion
-                                    title = postWithProfile.title,
-                                    content = postWithProfile.content,
-                                    image = postWithProfile.imageUrl,
-                                    createdAt = postWithProfile.createdAt
-                                ),
-                                nickname = displayNickname,
-                                profileImage = postWithProfile.avatarUrl,
-                                likeCount = 0, // Default values - will be fetched separately later
-                                commentCount = 0,
-                                isLiked = false,
-                                isBookmarked = false
-                            )
+                        val postWithExtrasList = coroutineScope {
+                            postsWithProfiles.map { postWithProfile ->
+                                async {
+                                    // Use the actual nickname from the profile, but override for current user
+                                    val displayNickname = if (postWithProfile.userId == currentUserId) {
+                                        currentUserNickname
+                                    } else {
+                                        postWithProfile.nickname ?: "알 수 없는 사용자"
+                                    }
+                                    
+                                    // Fetch actual counts and statuses in parallel
+                                    val commentCountDeferred = async {
+                                        repositoryManager.postRepository.getCommentCountByPost(postWithProfile.postId).getOrElse { 0 }
+                                    }
+                                    val likeCountDeferred = async {
+                                        repositoryManager.postRepository.getLikeCountByPost(postWithProfile.postId).getOrElse { 0 }
+                                    }
+                                    val isLikedDeferred = async {
+                                        if (currentUserId != null) {
+                                            repositoryManager.postRepository.isPostLikedByUser(postWithProfile.postId, currentUserId).getOrElse { false }
+                                        } else false
+                                    }
+                                    val isBookmarkedDeferred = async {
+                                        if (currentUserId != null) {
+                                            repositoryManager.postRepository.isPostBookmarkedByUser(postWithProfile.postId, currentUserId).getOrElse { false }
+                                        } else false
+                                    }
+                                    
+                                    // Wait for all async operations to complete
+                                    val commentCount = commentCountDeferred.await()
+                                    val likeCount = likeCountDeferred.await()
+                                    val isLiked = isLikedDeferred.await()
+                                    val isBookmarked = isBookmarkedDeferred.await()
+                                    
+                                    // Create PostWithExtras with Room Post entity and actual values
+                                    PostWithExtras(
+                                        post = com.example.lovebug_project.data.db.entity.Post(
+                                            postId = postWithProfile.postId,
+                                            userId = postWithProfile.userId.hashCode(), // Temporary conversion
+                                            title = postWithProfile.title,
+                                            content = postWithProfile.content,
+                                            image = postWithProfile.imageUrl,
+                                            createdAt = postWithProfile.createdAt
+                                        ),
+                                        nickname = displayNickname,
+                                        profileImage = postWithProfile.avatarUrl,
+                                        likeCount = likeCount,
+                                        commentCount = commentCount,
+                                        isLiked = isLiked,
+                                        isBookmarked = isBookmarked
+                                    )
+                                }
+                            }.awaitAll()
                         }.sortedByDescending { it.post.postId } // Sort by postId descending (newest first)
                         
                         // UI 업데이트는 메인 스레드에서 수행
