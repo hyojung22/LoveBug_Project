@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView // ImageView import 추가
 import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
@@ -22,120 +23,106 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * 나의 게시물을 표시하는 프래그먼트
- */
 class MyBoardFragment : Fragment() {
-    
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: MyBoardAdapter
     private var userPosts: List<PostWithProfile> = emptyList()
-    
+    private lateinit var btnBack2: ImageView
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        return inflater.inflate(R.layout.fragment_my_board, container, false)
+        val view = inflater.inflate(R.layout.fragment_my_board, container, false)
+        return view
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        btnBack2 = view.findViewById(R.id.btnBack2)
+        btnBack2.setOnClickListener {
+            // Activity의 OnBackPressedDispatcher를 통해 뒤로가기 이벤트를 전달합니다.
+            // 이 프래그먼트가 addToBackStack()으로 추가되었다면,
+            // 이전 프래그먼트나 Activity 상태로 돌아갑니다.
+            activity?.onBackPressedDispatcher?.onBackPressed()
+        }
+
         setupRecyclerView(view)
         loadUserPosts()
     }
-    
+
     private fun setupRecyclerView(view: View) {
         recyclerView = view.findViewById(R.id.recyclerView)
-        
         adapter = MyBoardAdapter(
             onItemClick = { post ->
                 navigateToPostDetail(post)
             },
             coroutineScope = lifecycleScope
         )
-        
         recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = this@MyBoardFragment.adapter
         }
     }
-    
+
     private fun loadUserPosts() {
         val currentUserUuid = AuthHelper.getSupabaseUserId(requireContext())
-        
         if (currentUserUuid == null) {
             Toast.makeText(requireContext(), "로그인이 필요합니다.", Toast.LENGTH_SHORT).show()
+            // 예를 들어 로그인 화면으로 이동하거나, 프래그먼트를 닫는 등의 처리를 할 수 있습니다.
+            // activity?.onBackPressedDispatcher?.onBackPressed() // 프래그먼트 닫기 예시
             return
         }
-        
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // 사용자의 게시글 조회
                 val postsResult = MyApplication.repositoryManager.postRepository.getPostsByUserId(currentUserUuid)
-                
                 postsResult.fold(
                     onSuccess = { posts ->
-                        // Post를 PostWithProfile로 변환하면서 사용자 정보 추가
                         val postsWithProfile = posts.map { post ->
                             convertToPostWithProfile(post)
                         }
-                        
                         withContext(Dispatchers.Main) {
                             userPosts = postsWithProfile
                             adapter.setPosts(postsWithProfile)
-                            
                             if (postsWithProfile.isEmpty()) {
-                                Toast.makeText(
-                                    requireContext(), 
-                                    "작성한 게시물이 없습니다.", 
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(requireContext(), "작성한 게시물이 없습니다.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
                     onFailure = { exception ->
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                requireContext(), 
-                                "게시물을 불러오는데 실패했습니다: ${exception.message}", 
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(requireContext(), "게시물을 불러오는데 실패했습니다: ${exception.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 )
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        requireContext(), 
-                        "오류가 발생했습니다: ${e.message}", 
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(requireContext(), "오류가 발생했습니다: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
-    
+
     private suspend fun convertToPostWithProfile(post: Post): PostWithProfile {
-        // 현재 사용자의 프로필 정보 가져오기
         val userProfile = MyApplication.repositoryManager.userRepository.getUserProfile(post.userId)
-        
         return PostWithProfile(
             postId = post.postId,
             userId = post.userId,
             title = post.title,
             content = post.content,
             imageUrl = post.image,
-            imagePath = null,
+            imagePath = null, // 필요에 따라 설정
             createdAt = post.createdAt,
             updatedAt = post.updatedAt,
             nickname = userProfile?.nickname ?: "알 수 없는 사용자",
             avatarUrl = userProfile?.avatarUrl
         )
     }
-    
+
     private fun navigateToPostDetail(post: PostWithProfile) {
-        // PostWithProfile을 PostWithExtras로 변환
         val postExtra = PostWithExtras(
             post = com.example.lovebug_project.data.db.entity.Post(
                 postId = post.postId,
@@ -147,42 +134,34 @@ class MyBoardFragment : Fragment() {
             ),
             nickname = post.nickname ?: "알 수 없는 사용자",
             profileImage = post.avatarUrl,
-            likeCount = 0,
-            commentCount = 0,
-            isLiked = false,
-            isBookmarked = false
+            likeCount = 0, // 실제 값으로 채워야 함
+            commentCount = 0, // 실제 값으로 채워야 함
+            isLiked = false, // 실제 값으로 채워야 함
+            isBookmarked = false // 실제 값으로 채워야 함
         )
 
-        // MainActivity에서 frame 전환 및 BoardDetailFragment로 이동
-        val mainActivity = requireActivity() as com.example.lovebug_project.MainActivity
+        val mainActivity = requireActivity() as? com.example.lovebug_project.MainActivity
+        mainActivity?.let {
+            it.findViewById<TextView>(R.id.tvBoardName)?.text = post.title
+            it.findViewById<FrameLayout>(R.id.frame)?.visibility = View.GONE
+            it.findViewById<FrameLayout>(R.id.frame2)?.visibility = View.VISIBLE
+            it.findViewById<View>(R.id.clTitleBar)?.visibility = View.VISIBLE
 
-        // 제목 변경
-        mainActivity.findViewById<TextView>(R.id.tvBoardName)?.text = post.title
+            val bundle = Bundle().apply {
+                putSerializable("postExtra", postExtra)
+            }
+            val detailFragment = BoardDetailFragment().apply {
+                arguments = bundle
+            }
 
-        // frame -> frame2로 전환
-        mainActivity.findViewById<FrameLayout>(R.id.frame)?.visibility = View.GONE
-        mainActivity.findViewById<FrameLayout>(R.id.frame2)?.visibility = View.VISIBLE
-
-        // TitleBar 보이게
-        mainActivity.findViewById<View>(R.id.clTitleBar)?.visibility = View.VISIBLE
-
-        val bundle = Bundle().apply {
-            putSerializable("postExtra", postExtra)
+            it.supportFragmentManager.beginTransaction()
+                .replace(R.id.frame2, detailFragment) // frame2에 BoardDetailFragment를 표시
+                .addToBackStack(null) // BoardDetailFragment에서 뒤로가기 시 MyBoardFragment로 돌아오도록 설정
+                .commit()
         }
-        val detailFragment = BoardDetailFragment().apply {
-            arguments = bundle
-        }
-
-        mainActivity.supportFragmentManager.beginTransaction()
-            .replace(R.id.frame2, detailFragment)
-            .addToBackStack(null)
-            .commit()
     }
-    
+
     companion object {
-        /**
-         * MyBoardFragment의 새 인스턴스 생성
-         */
         @JvmStatic
         fun newInstance() = MyBoardFragment()
     }
