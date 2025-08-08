@@ -232,7 +232,7 @@ class CachedPostRepository(context: Context) {
      * Delete post and invalidate caches
      */
     suspend fun deletePost(postId: Int, userId: String): Result<Unit> {
-        val result = supabaseRepo.deletePost(postId)
+        val result = supabaseRepo.deletePost(postId, userId)
         
         if (result.isSuccess) {
             // Invalidate all affected caches

@@ -319,10 +319,32 @@ class SupabasePostRepository {
     /**
      * 게시글 삭제 (연관 데이터 포함)
      * FK 제약조건을 고려하여 comments, likes를 먼저 삭제한 후 게시글 삭제
+     * 권한 검사: 현재 사용자가 게시글 작성자인지 확인
      */
-    suspend fun deletePost(postId: Int): Result<Unit> {
+    suspend fun deletePost(postId: Int, currentUserId: String): Result<Unit> {
         return measureOperation("deletePost") {
             try {
+                // 0. 권한 검사: 게시글이 존재하고 현재 사용자가 작성자인지 확인
+                val post = supabase.from("posts")
+                    .select {
+                        filter {
+                            eq("post_id", postId)
+                        }
+                    }
+                    .decodeList<Post>().firstOrNull()
+                
+                if (post == null) {
+                    return@measureOperation Result.failure(
+                        Exception("게시글을 찾을 수 없습니다.")
+                    )
+                }
+                
+                if (post.userId != currentUserId) {
+                    return@measureOperation Result.failure(
+                        Exception("게시글 삭제 권한이 없습니다. 본인이 작성한 게시글만 삭제할 수 있습니다.")
+                    )
+                }
+                
                 // 1. 연관된 댓글 삭제 (comments 테이블에서 post_id가 일치하는 모든 댓글)
                 supabase.from("comments")
                     .delete {
@@ -347,11 +369,14 @@ class SupabasePostRepository {
                         }
                     }
                 
-                // 4. 게시글 삭제 (posts 테이블에서 해당 post_id)
+                // 4. 게시글 삭제 (posts 테이블에서 해당 post_id와 user_id 모두 확인)
                 supabase.from("posts")
                     .delete {
                         filter {
-                            eq("post_id", postId)
+                            and {
+                                eq("post_id", postId)
+                                eq("user_id", currentUserId)
+                            }
                         }
                     }
                 
@@ -365,7 +390,10 @@ class SupabasePostRepository {
                 ErrorReporter.logSupabaseError(
                     operation = "deletePost",
                     error = e,
-                    context = ErrorReporter.createContext("postId" to postId)
+                    context = ErrorReporter.createContext(
+                        "postId" to postId,
+                        "currentUserId" to currentUserId
+                    )
                 )
                 Result.failure(e)
             }
