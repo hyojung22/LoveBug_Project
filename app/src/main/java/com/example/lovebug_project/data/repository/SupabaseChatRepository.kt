@@ -29,25 +29,66 @@ class SupabaseChatRepository {
     private val realtime = supabase.realtime
     
     /**
-     * Ensure realtime connection is established
+     * 개선된 Realtime 연결 관리
+     * 실제 연결 상태를 확인하여 연결 성공 여부를 판단
      * @return true if connection successful, false otherwise
      */
     suspend fun ensureRealtimeConnection(): Boolean {
         return try {
-            android.util.Log.d("SupabaseChatRepo", "🔌 Attempting to establish Realtime connection...")
-            android.util.Log.d("SupabaseChatRepo", "Realtime instance: ${realtime}")
-            android.util.Log.d("SupabaseChatRepo", "Current Realtime status before connect: ${realtime.status}")
+            android.util.Log.d("SupabaseChatRepo", "🔌 Starting improved Realtime connection...")
             
+            val currentStatus = realtime.status.toString()
+            android.util.Log.d("SupabaseChatRepo", "Current status: $currentStatus")
+            
+            // 이미 연결되어 있으면 바로 반환
+            if (currentStatus == "OPEN" || currentStatus == "CONNECTED") {
+                android.util.Log.d("SupabaseChatRepo", "✅ Already connected")
+                return true
+            }
+            
+            // 연결 시도
             realtime.connect()
             
-            // Wait a bit to allow connection to establish
-            kotlinx.coroutines.delay(2000)
+            // 실제 연결 상태를 확인하며 대기
+            var waitTime = 0L
+            val maxWaitTime = 15000L // 15초 최대 대기
+            val checkInterval = 500L // 0.5초마다 체크
             
-            android.util.Log.d("SupabaseChatRepo", "Realtime status after connect: ${realtime.status}")
-            android.util.Log.d("SupabaseChatRepo", "✅ Realtime connection attempt completed")
+            while (waitTime < maxWaitTime) {
+                val status = realtime.status.toString()
+                android.util.Log.d("SupabaseChatRepo", "Checking status: $status (waited: ${waitTime}ms)")
+                
+                when (status) {
+                    "OPEN", "CONNECTED" -> {
+                        android.util.Log.d("SupabaseChatRepo", "✅ Connection established successfully!")
+                        ErrorReporter.logSuccess("RealtimeConnection", "Connection established after ${waitTime}ms")
+                        return true
+                    }
+                    "CLOSED", "FAILED" -> {
+                        android.util.Log.e("SupabaseChatRepo", "❌ Connection failed with status: $status")
+                        ErrorReporter.logSupabaseError("RealtimeConnection", 
+                            Exception("Connection failed with status: $status"))
+                        return false
+                    }
+                    "CONNECTING" -> {
+                        // 연결 중이므로 계속 대기
+                    }
+                    else -> {
+                        android.util.Log.w("SupabaseChatRepo", "Unknown status: $status")
+                    }
+                }
+                
+                kotlinx.coroutines.delay(checkInterval)
+                waitTime += checkInterval
+            }
             
-            ErrorReporter.logSuccess("RealtimeConnection", "WebSocket connection established")
-            true
+            // 타임아웃
+            val finalStatus = realtime.status.toString()
+            android.util.Log.e("SupabaseChatRepo", "❌ Connection timeout after ${maxWaitTime}ms. Final status: $finalStatus")
+            ErrorReporter.logSupabaseError("RealtimeConnection", 
+                Exception("Connection timeout after ${maxWaitTime}ms. Status: $finalStatus"))
+            false
+            
         } catch (e: Exception) {
             android.util.Log.e("SupabaseChatRepo", "❌ Realtime connection failed", e)
             android.util.Log.e("SupabaseChatRepo", "Error details: ${e.message}")
@@ -204,18 +245,17 @@ class SupabaseChatRepository {
     }
     
     /**
-     * Subscribe to new messages in a specific chat room
+     * 개선된 버전: Subscribe to new messages in a specific chat room
+     * 최신 Supabase Kotlin API 사용 및 더 안정적인 연결 관리
      * @param chatId Chat room ID to subscribe to
      * @return Pair of RealtimeChannel and Flow of new chat messages
      */
     suspend fun subscribeToNewMessages(chatId: Int): Pair<RealtimeChannel, Flow<ChatMessage>> {
-        android.util.Log.d("SupabaseChatRepo", "📡 ==> subscribeToNewMessages() called for chatId: $chatId")
+        android.util.Log.d("SupabaseChatRepo", "📡 ==> subscribeToNewMessages() IMPROVED VERSION for chatId: $chatId")
         
         // Get current user info for debugging
         val currentUser = supabase.auth.currentUserOrNull()
         android.util.Log.d("SupabaseChatRepo", "Current user: ${currentUser?.id}")
-        android.util.Log.d("SupabaseChatRepo", "User role: ${currentUser?.role}")
-        android.util.Log.d("SupabaseChatRepo", "User aud: ${currentUser?.aud}")
         
         // Ensure realtime connection is established
         android.util.Log.d("SupabaseChatRepo", "Ensuring Realtime connection...")
@@ -225,32 +265,48 @@ class SupabaseChatRepository {
         }
         android.util.Log.d("SupabaseChatRepo", "✅ Realtime connection established")
         
-        // Create unique channel for this specific chat room to improve filtering
-        val channelName = "chat-messages-$chatId"
-        android.util.Log.d("SupabaseChatRepo", "Creating new Realtime channel: $channelName")
-        val channel = realtime.channel(channelName)
-        android.util.Log.d("SupabaseChatRepo", "Channel created: ${channel}")
-        android.util.Log.d("SupabaseChatRepo", "Channel status before setup: ${channel.status}")
+        // Create unique channel using latest API
+        val channelName = "chat_messages_$chatId"
+        android.util.Log.d("SupabaseChatRepo", "Creating channel: $channelName")
         
-        // Create postgresChangeFlow - channel name separation provides isolation
-        android.util.Log.d("SupabaseChatRepo", "Creating postgresChangeFlow for table: chat_messages")
+        val channel = realtime.channel(channelName)
+        android.util.Log.d("SupabaseChatRepo", "Channel created: $channel")
+        
+        // Create postgresChangeFlow with improved error handling
         val flow = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "chat_messages"
-            // Note: Server-side filtering via filter property is not available in 3.2.2
-            // Using unique channel names per chat for isolation instead
+            // 최신 버전에서는 클라이언트 사이드 필터링을 사용
+            // 서버 사이드 필터링이 사용 가능한 경우 추용
         }
-        android.util.Log.d("SupabaseChatRepo", "✅ PostgresChangeFlow created for table: chat_messages on channel: $channelName")
-        ErrorReporter.logSuccess("RealtimeSetup", "Created postgresChangeFlow for table: chat_messages, chat: $chatId with channel isolation")
-
-        // Subscribe to channel AFTER creating postgresChangeFlow
+        
+        android.util.Log.d("SupabaseChatRepo", "PostgresChangeFlow created")
+        
+        // Subscribe using latest API (no join needed)
         android.util.Log.d("SupabaseChatRepo", "Subscribing to channel...")
         channel.subscribe()
-
-        // Increase delay to ensure subscription is fully established
-        kotlinx.coroutines.delay(2000)
-        android.util.Log.d("SupabaseChatRepo", "Channel status after subscription: ${channel.status}")
         
-        ErrorReporter.logSuccess("RealtimeChannel", "Channel subscribed for chat: $chatId")
+        // 개선된 대기 로직: 실제 상태 확인
+        var waitTime = 0L
+        val maxWaitTime = 10000L // 10초
+        val checkInterval = 500L
+        
+        while (waitTime < maxWaitTime) {
+            val status = channel.status.toString()
+            android.util.Log.d("SupabaseChatRepo", "Channel status: $status (waited: ${waitTime}ms)")
+            
+            if (status == "SUBSCRIBED" || status == "JOINED") {
+                android.util.Log.d("SupabaseChatRepo", "✅ Channel subscribed successfully!")
+                break
+            }
+            
+            kotlinx.coroutines.delay(checkInterval)
+            waitTime += checkInterval
+        }
+        
+        val finalStatus = channel.status.toString()
+        android.util.Log.d("SupabaseChatRepo", "Final channel status: $finalStatus")
+        
+        ErrorReporter.logSuccess("RealtimeChannel", "Channel subscribed for chat: $chatId, status: $finalStatus")
         
         val messageFlow = createMessageFlow(channel, chatId, flow)
         
@@ -259,65 +315,86 @@ class SupabaseChatRepository {
     }
     
     
+    // 중복 메시지 방지를 위한 Set
+    private val processedMessageIds = mutableSetOf<String>()
+    
     /**
-     * 새로운 채널과 flow로부터 message flow 생성
+     * 개선된 버전: Message flow 생성
+     * 중복 방지, 에러 처리, 성능 최적화 포함
      */
     private fun createMessageFlow(channel: RealtimeChannel, chatId: Int, flow: Flow<PostgresAction.Insert>): Flow<ChatMessage> {
         return flow
             .onStart {
-                android.util.Log.d("SupabaseChatRepo", "🔄 Message flow started collecting for chat: $chatId")
-                android.util.Log.d("SupabaseChatRepo", "Final channel status: ${channel.status}")
+                android.util.Log.d("SupabaseChatRepo", "🔄 IMPROVED Message flow started for chat: $chatId")
+                android.util.Log.d("SupabaseChatRepo", "Channel status: ${channel.status}")
             }
             .onEach { action ->
-                android.util.Log.d("SupabaseChatRepo", "🔔 RAW ACTION RECEIVED: ${action}")
-                android.util.Log.d("SupabaseChatRepo", "Action type: ${action::class.simpleName}")
-                android.util.Log.d("SupabaseChatRepo", "Action record: ${action.record}")
+                android.util.Log.d("SupabaseChatRepo", "🔔 RAW ACTION: ${action::class.simpleName}")
             }
-            .filter { action ->
-                // Client-side filtering for this specific chat
-                android.util.Log.d("SupabaseChatRepo", "Filtering message for chat: $chatId")
+            .mapNotNull { action ->
+                // 결합된 필터링과 매핑: null을 반환하면 자동으로 필터링됨
                 try {
                     val message = Json.decodeFromJsonElement(ChatMessage.serializer(), action.record)
-                    val isMatchingChat = message.chatId == chatId
-                    android.util.Log.d("SupabaseChatRepo", "Message ${message.messageId} chatId: ${message.chatId}, expecting: $chatId, match: $isMatchingChat")
-                    if (isMatchingChat) {
-                        android.util.Log.d("SupabaseChatRepo", "✅ Message ${message.messageId} matches chat $chatId")
-                        ErrorReporter.logSuccess("RealtimeFilter", "Message ${message.messageId} matches chat $chatId")
-                    } else {
-                        android.util.Log.d("SupabaseChatRepo", "⚠️ Message ${message.messageId} for chat ${message.chatId} ignored (expecting $chatId)")
-                        ErrorReporter.logSuccess("RealtimeFilter", "Message ${message.messageId} for chat ${message.chatId} ignored (expecting $chatId)")
+                    val messageId = message.messageId.toString()
+                    
+                    android.util.Log.d("SupabaseChatRepo", "Processing message: $messageId for chat: ${message.chatId}")
+                    
+                    // 1. Chat ID 체크
+                    if (message.chatId != chatId) {
+                        android.util.Log.d("SupabaseChatRepo", "⚠️ Wrong chat: ${message.chatId} != $chatId")
+                        return@mapNotNull null
                     }
-                    isMatchingChat
-                } catch (e: Exception) {
-                    android.util.Log.e("SupabaseChatRepo", "❌ Error decoding message in filter", e)
-                    android.util.Log.e("SupabaseChatRepo", "Record content: ${action.record}")
-                    ErrorReporter.logSupabaseError("RealtimeFilterError", e,
-                        ErrorReporter.createContext("action" to "INSERT", "table" to "chat_messages", "expectedChatId" to chatId))
-                    false
-                }
-            }
-            .map { action ->
-                android.util.Log.d("SupabaseChatRepo", "Mapping filtered action to ChatMessage")
-                try {
-                    val message = Json.decodeFromJsonElement(ChatMessage.serializer(), action.record)
-                    android.util.Log.d("SupabaseChatRepo", "✅ Successfully decoded message: ${message.messageId}")
-                    android.util.Log.d("SupabaseChatRepo", "Message details - ID: ${message.messageId}, from: ${message.senderId}, content: ${message.message}")
-                    ErrorReporter.logSuccess("RealtimeChatMessage", "New message received: ${message.messageId} for chat: ${message.chatId}")
+                    
+                    // 2. 중복 체크
+                    synchronized(processedMessageIds) {
+                        if (processedMessageIds.contains(messageId)) {
+                            android.util.Log.d("SupabaseChatRepo", "⚠️ Duplicate message: $messageId")
+                            return@mapNotNull null
+                        }
+                        processedMessageIds.add(messageId)
+                        
+                        // 메모리 관리: 1000개 이상 저장되면 오래된 것 제거
+                        if (processedMessageIds.size > 1000) {
+                            val toRemove = processedMessageIds.take(200)
+                            processedMessageIds.removeAll(toRemove.toSet())
+                            android.util.Log.d("SupabaseChatRepo", "Cleaned up ${toRemove.size} old message IDs")
+                        }
+                    }
+                    
+                    android.util.Log.d("SupabaseChatRepo", "✅ Valid new message: $messageId")
+                    ErrorReporter.logSuccess("RealtimeChatMessage", "New message: $messageId for chat: $chatId")
+                    
                     message
+                    
                 } catch (e: Exception) {
-                    android.util.Log.e("SupabaseChatRepo", "❌ Error decoding message in map", e)
-                    ErrorReporter.logSupabaseError("RealtimeDecodeError", e,
-                        ErrorReporter.createContext("action" to "INSERT", "table" to "chat_messages", "chatId" to chatId))
-                    throw e
+                    android.util.Log.e("SupabaseChatRepo", "❌ Error processing message", e)
+                    ErrorReporter.logSupabaseError("RealtimeMessageProcessing", e,
+                        ErrorReporter.createContext("chatId" to chatId, "action" to "INSERT"))
+                    null // 오류 발생 시 null 반환하여 해당 메시지 무시
                 }
             }
             .catch { error ->
-                android.util.Log.e("SupabaseChatRepo", "❌ Error in message flow", error as Throwable)
-                android.util.Log.e("SupabaseChatRepo", "Flow error details: ${error.message}")
-                ErrorReporter.logSupabaseError("RealtimeNewMessages", error as Throwable,
-                    ErrorReporter.createContext("chatId" to chatId, "channel" to "chat-messages-$chatId"))
-                throw error
+                android.util.Log.e("SupabaseChatRepo", "❌ Critical error in message flow", error as Throwable)
+                ErrorReporter.logSupabaseError("RealtimeFlowError", error as Throwable,
+                    ErrorReporter.createContext("chatId" to chatId))
+                
+                // 에러 시 빈 배열 전송하여 전체 플로우가 중단되지 않도록 함
+                emitAll(emptyFlow<ChatMessage>())
             }
+            .distinctUntilChanged { old, new ->
+                // 추가 중복 방지: 같은 메시지 ID를 가진 동일한 메시지
+                old.messageId == new.messageId
+            }
+    }
+    
+    /**
+     * 중복 방지 상태 초기화 (테스트용)
+     */
+    fun clearProcessedMessageIds() {
+        synchronized(processedMessageIds) {
+            processedMessageIds.clear()
+            android.util.Log.d("SupabaseChatRepo", "Processed message IDs cleared")
+        }
     }
 
     
