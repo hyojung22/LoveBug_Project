@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.lovebug_project.data.supabase.models.ChatUserSearchResult
 import com.example.lovebug_project.databinding.ItemUserSearchResultBinding
+import com.example.lovebug_project.utils.loadProfileImage
 
 /**
  * Adapter for displaying user search results in the new chat dialog
@@ -41,13 +42,8 @@ class UserSearchAdapter(
         fun bind(user: ChatUserSearchResult) {
             binding.textViewNickname.text = user.nickname
 
-            // TODO: 프로필 이미지 로딩 구현 (Glide 또는 Coil 사용)
-            // if (!user.avatarUrl.isNullOrEmpty()) {
-            //     Glide.with(binding.imageViewProfile.context)
-            //         .load(user.avatarUrl)
-            //         .placeholder(R.drawable.default_profile_image)
-            //         .into(binding.imageViewProfile)
-            // }
+            // 프로필 이미지 로딩 구현
+            binding.imageViewProfile.loadProfileImage(user.avatarUrl)
 
             binding.root.setOnClickListener {
                 onUserClick(user)
