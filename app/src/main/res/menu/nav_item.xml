@@ -8,8 +8,8 @@
         android:title="홈" />
     <item
         android:id="@+id/btnBoard"
-        android:icon="@drawable/board_off"
-        android:title="게시글" />
+        android:icon="@drawable/community_off"
+        android:title="커뮤니티" />
     <item
         android:id="@+id/btnChat"
         android:icon="@drawable/chat_off"
