@@ -54,7 +54,12 @@ class MypageFragment : Fragment() {
         
         // 나의 게시물 클릭 이벤트  
         binding.constraintLayout4.setOnClickListener {
-            Toast.makeText(requireContext(), "나의 게시물 기능 준비 중입니다.", Toast.LENGTH_SHORT).show()
+            // MainActivity의 frame을 사용해서 MyBoardFragment로 이동
+            val mainActivity = requireActivity() as com.example.lovebug_project.MainActivity
+            val transaction = mainActivity.supportFragmentManager.beginTransaction()
+            transaction.replace(R.id.frame, MyBoardFragment.newInstance())
+            transaction.addToBackStack(null)
+            transaction.commit()
         }
         
         // 정보수정 클릭 이벤트
