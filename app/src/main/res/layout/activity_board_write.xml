@@ -116,6 +116,7 @@
     </androidx.cardview.widget.CardView>
 
     <Button
+        android:backgroundTint="#4CAF50"
         android:id="@+id/btnRegister"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
